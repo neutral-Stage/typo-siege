@@ -1,17 +1,27 @@
 import type { FallingWord } from './entities';
 import type { PowerUpState } from './power';
-import { getWordsForWave, getSpawnInterval, getSpeedMultiplier } from './words';
+import { getWordsForWave, getSpawnInterval, getSpeedMultiplier, isBossWave, getBossWord } from './words';
 import { createFallingWord, findTargetWord } from './entities';
 import { createPowerUps, distributeCharge, chargeAmount, usePowerUp, isPowerUpKey } from './power';
 import { Renderer } from './renderer';
 import type { DestroyEffect } from './renderer';
 import { soundType, soundDestroy, soundMiss, soundPowerUp, soundWaveComplete, soundGameOver, soundCombo } from './audio';
 
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+const DIFFICULTY_MULT: Record<Difficulty, { speed: number; spawn: number; lives: number }> = {
+  easy:   { speed: 0.7, spawn: 1.3, lives: 5 },
+  normal: { speed: 1.0, spawn: 1.0, lives: 3 },
+  hard:   { speed: 1.4, spawn: 0.7, lives: 2 },
+};
+
 export class Game {
   private renderer: Renderer;
   private phase: 'menu' | 'playing' | 'waveTransition' | 'gameover' = 'menu';
   private words: FallingWord[] = [];
   private powerUps: PowerUpState[];
+  private difficulty: Difficulty;
+  private diffConfig: typeof DIFFICULTY_MULT[Difficulty];
   private score = 0;
   private lives = 3;
   private wave = 1;
@@ -32,15 +42,19 @@ export class Game {
   private isNewHighScore = false;
   private totalWordsDestroyed = 0;
   private totalCharsTyped = 0;
+  private _isBossWave = false;
+  private bossSpawned = false;
 
   private emitState() {
     this.onStateChange?.();
   }
 
-  constructor(private canvas: HTMLCanvasElement, onStateChange?: () => void) {
+  constructor(private canvas: HTMLCanvasElement, onStateChange?: () => void, difficulty: Difficulty = 'normal') {
     this.renderer = new Renderer(canvas);
     this.powerUps = createPowerUps();
     this.onStateChange = onStateChange;
+    this.difficulty = difficulty;
+    this.diffConfig = DIFFICULTY_MULT[difficulty];
   }
 
   start() {
@@ -48,7 +62,7 @@ export class Game {
     this.words = [];
     this.powerUps = createPowerUps();
     this.score = 0;
-    this.lives = 3;
+    this.lives = this.diffConfig.lives;
     this.wave = 1;
     this.combo = 0;
     this.maxCombo = 0;
@@ -61,6 +75,8 @@ export class Game {
     this.isNewHighScore = false;
     this.totalWordsDestroyed = 0;
     this.totalCharsTyped = 0;
+    this._isBossWave = false;
+    this.bossSpawned = false;
     this.lastTime = performance.now();
     this.emitState();
   }
@@ -68,7 +84,6 @@ export class Game {
   handleKey(key: string) {
     if (this.phase !== 'playing') return;
 
-    // Power-up activation
     const puType = isPowerUpKey(key, this.powerUps);
     if (puType) {
       this.activatePowerUp(puType);
@@ -131,7 +146,6 @@ export class Game {
     const charge = chargeAmount(word.entry.text.length, word.entry.difficulty);
     distributeCharge(this.powerUps, charge);
 
-    // Spawn unique effect particles
     this.spawnEffectForWord(word, effect);
 
     if (!silent) {
@@ -152,21 +166,11 @@ export class Game {
 
   private spawnEffectForWord(word: FallingWord, effect: DestroyEffect) {
     switch (effect) {
-      case 'fire':
-        this.renderer.spawnFireParticles(word);
-        break;
-      case 'lightning':
-        this.renderer.spawnLightningParticles(word);
-        break;
-      case 'shield':
-        this.renderer.spawnShieldParticles(word);
-        break;
-      case 'chain':
-        this.renderer.spawnChainParticles(word);
-        break;
-      default:
-        this.renderer.spawnDestroyParticles(word);
-        break;
+      case 'fire':      this.renderer.spawnFireParticles(word); break;
+      case 'lightning':  this.renderer.spawnLightningParticles(word); break;
+      case 'shield':     this.renderer.spawnShieldParticles(word); break;
+      case 'chain':      this.renderer.spawnChainParticles(word); break;
+      default:           this.renderer.spawnDestroyParticles(word); break;
     }
   }
 
@@ -187,6 +191,10 @@ export class Game {
     this.wordsDestroyedInWave = 0;
     this.wordsPerWave = Math.min(35, 18 + this.wave * 3);
     this.totalWordsSpawned = 0;
+    this.bossSpawned = false;
+
+    // Check if boss wave
+    this._isBossWave = isBossWave(this.wave);
 
     if (this.wave > 2) {
       this.phase = 'waveTransition';
@@ -273,14 +281,21 @@ export class Game {
 
     const W = this.renderer.width;
     const H = this.renderer.height;
-    const speedMult = getSpeedMultiplier(this.wave);
+    const speedMult = getSpeedMultiplier(this.wave) * this.diffConfig.speed;
     const frozen = this.shieldTimer > 0;
 
     if (this.shieldTimer > 0) this.shieldTimer -= dt;
 
     // Spawn words
-    this.spawnTimer -= dt * 1000;
+    this.spawnTimer -= dt * 1000 * this.diffConfig.spawn;
     if (this.spawnTimer <= 0 && this.totalWordsSpawned < this.wordsPerWave) {
+      // Boss word on boss waves
+      if (this._isBossWave && !this.bossSpawned) {
+        const bossEntry = getBossWord();
+        this.words.push(createFallingWord(bossEntry, W, speedMult * 0.5)); // Boss is slower
+        this.bossSpawned = true;
+      }
+
       const wordPool = getWordsForWave(this.wave);
       const entry = wordPool[Math.floor(Math.random() * wordPool.length)];
       this.words.push(createFallingWord(entry, W, speedMult));
@@ -332,4 +347,5 @@ export class Game {
   get isNewHigh(): boolean { return this.isNewHighScore; }
   get wordsDestroyed(): number { return this.totalWordsDestroyed; }
   get charsTyped(): number { return this.totalCharsTyped; }
+  get isBossWaveFlag(): boolean { return this._isBossWave; }
 }

@@ -164,3 +164,57 @@ export function getSpawnInterval(wave: number): number {
 export function getSpeedMultiplier(wave: number): number {
   return 1 + (wave - 1) * 0.12;
 }
+
+// Boss words appear every 5 waves
+export function isBossWave(wave: number): boolean {
+  return wave > 0 && wave % 5 === 0;
+}
+
+export function getBossWord(): WordEntry {
+  const bosses: WordEntry[] = [
+    { text: 'incomprehensible', difficulty: 5, points: 200, speed: 30 },
+    { text: 'extraordinary', difficulty: 5, points: 200, speed: 30 },
+    { text: 'unpredictable', difficulty: 5, points: 200, speed: 30 },
+    { text: 'overwhelming', difficulty: 5, points: 200, speed: 30 },
+    { text: 'thunderstorm', difficulty: 5, points: 200, speed: 30 },
+    { text: 'revolutionary', difficulty: 5, points: 200, speed: 30 },
+    { text: 'constellation', difficulty: 5, points: 200, speed: 30 },
+    { text: 'encyclopedia', difficulty: 5, points: 200, speed: 30 },
+    { text: 'mischievous', difficulty: 5, points: 200, speed: 30 },
+    { text: 'catastrophe', difficulty: 5, points: 250, speed: 35 },
+    { text: 'pharmaceutical', difficulty: 5, points: 250, speed: 35 },
+    { text: 'accomplishment', difficulty: 5, points: 250, speed: 35 },
+    { text: 'communication', difficulty: 5, points: 250, speed: 35 },
+    { text: 'entertainment', difficulty: 5, points: 250, speed: 35 },
+    { text: 'international', difficulty: 5, points: 250, speed: 35 },
+  ];
+  return bosses[Math.floor(Math.random() * bosses.length)];
+}
+
+// Taunts
+export const TAUNTS = {
+  combo: [
+    'ON FIRE! 🔥', 'UNSTOPPABLE! 💀', 'TOO EASY! 😎',
+    'SPEED DEMON! ⚡', 'GODLIKE! 👑', 'LEGENDARY! 🌟',
+    'SAVAGE! 🦁', 'MEGA COMBO! 💎', 'RUTHLESS! 🔪',
+  ],
+  miss: [
+    'Ouch! 🤕', 'That hurt!', 'Watch out! 👀',
+    'Stay focused!', 'Oops! 😅', 'They\'re getting through!',
+  ],
+  waveComplete: [
+    'Wave cleared! 🎉', 'Nice work! 💪', 'Keep going! 🚀',
+    'Bring it on! 😤', 'Too easy! 🎯',
+  ],
+  bossIncoming: [
+    '⚠️ BOSS INCOMING! ⚠️',
+    '💀 BIG WORD ALERT! 💀',
+    '🏰 SIEGE BREAKER! 🏰',
+  ],
+  powerUp: [
+    'POWER SURGE! ⚡', 'UNLEASHED! 💥', 'MAXIMUM POWER! 🔋',
+  ],
+  achievement: [
+    '🏅 Achievement Unlocked!',
+  ],
+};
