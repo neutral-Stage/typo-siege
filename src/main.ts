@@ -95,6 +95,20 @@ startBtn.addEventListener('click', () => {
   updateUI();
 });
 
+// Power-up click handlers
+document.getElementById('pu-fire')!.addEventListener('click', () => {
+  if (game.isPlaying) game.handleKey('1');
+});
+document.getElementById('pu-lightning')!.addEventListener('click', () => {
+  if (game.isPlaying) game.handleKey('2');
+});
+document.getElementById('pu-shield')!.addEventListener('click', () => {
+  if (game.isPlaying) game.handleKey('3');
+});
+document.getElementById('pu-chain')!.addEventListener('click', () => {
+  if (game.isPlaying) game.handleKey('4');
+});
+
 // Show initial menu state
 showMenu();
 
