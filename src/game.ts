@@ -4,6 +4,7 @@ import { getWordsForWave, getSpawnInterval, getSpeedMultiplier } from './words';
 import { createFallingWord, findTargetWord } from './entities';
 import { createPowerUps, distributeCharge, chargeAmount, usePowerUp, isPowerUpKey } from './power';
 import { Renderer } from './renderer';
+import type { DestroyEffect } from './renderer';
 import { soundType, soundDestroy, soundMiss, soundPowerUp, soundWaveComplete, soundGameOver, soundCombo } from './audio';
 
 export class Game {
@@ -25,16 +26,10 @@ export class Game {
   private activeTarget: FallingWord | null = null;
   private currentInput = '';
   private onStateChange?: () => void;
-
-  // Wave transition
   private waveTransTimer = 0;
   private waveTransDuration = 2.5;
-
-  // High score
   private highScore = parseInt(localStorage.getItem('typo-siege-highscore') || '0', 10);
   private isNewHighScore = false;
-
-  // Stats
   private totalWordsDestroyed = 0;
   private totalCharsTyped = 0;
 
@@ -83,7 +78,6 @@ export class Game {
     if (key.length !== 1) return;
     const char = key.toLowerCase();
 
-    // Find target
     if (!this.activeTarget || this.activeTarget.destroying) {
       this.activeTarget = findTargetWord(this.words, char);
     }
@@ -97,9 +91,8 @@ export class Game {
       this.activeTarget.glowIntensity = 1;
       soundType();
 
-      // Word completed
       if (this.activeTarget.typed >= this.activeTarget.entry.text.length) {
-        this.destroyWord(this.activeTarget);
+        this.destroyWord(this.activeTarget, false, 'normal');
         this.activeTarget = null;
         this.currentInput = '';
       }
@@ -107,11 +100,9 @@ export class Game {
     this.emitState();
   }
 
-  /** Returns true if a power-up was activated or a letter was typed */
   handleKeyWithFeedback(key: string): boolean {
     if (this.phase !== 'playing') return false;
 
-    // Check if it's a power-up key
     const isPUKey = ['1', '2', '3', '4'].includes(key);
     if (isPUKey) {
       const puType = isPowerUpKey(key, this.powerUps);
@@ -119,14 +110,14 @@ export class Game {
         this.activatePowerUp(puType);
         return true;
       }
-      return false; // not charged
+      return false;
     }
 
     this.handleKey(key);
     return true;
   }
 
-  private destroyWord(word: FallingWord, silent = false) {
+  private destroyWord(word: FallingWord, silent = false, effect: DestroyEffect = 'normal') {
     word.destroying = true;
     word.destroyTimer = 0.4;
 
@@ -137,29 +128,46 @@ export class Game {
     this.totalWordsDestroyed++;
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
-    // Charge power-ups
     const charge = chargeAmount(word.entry.text.length, word.entry.difficulty);
     distributeCharge(this.powerUps, charge);
 
-    // Effects
+    // Spawn unique effect particles
+    this.spawnEffectForWord(word, effect);
+
     if (!silent) {
       soundDestroy();
-      this.renderer.spawnDestroyParticles(word);
       if (this.combo > 1) {
         this.renderer.showCombo(this.combo);
         soundCombo(this.combo);
       }
-    } else {
-      this.renderer.spawnDestroyParticles(word);
     }
 
-    // Wave progress
     this.wordsDestroyedInWave++;
     if (this.wordsDestroyedInWave >= this.wordsPerWave) {
       this.nextWave();
     }
 
     this.emitState();
+  }
+
+  private spawnEffectForWord(word: FallingWord, effect: DestroyEffect) {
+    switch (effect) {
+      case 'fire':
+        this.renderer.spawnFireParticles(word);
+        break;
+      case 'lightning':
+        this.renderer.spawnLightningParticles(word);
+        break;
+      case 'shield':
+        this.renderer.spawnShieldParticles(word);
+        break;
+      case 'chain':
+        this.renderer.spawnChainParticles(word);
+        break;
+      default:
+        this.renderer.spawnDestroyParticles(word);
+        break;
+    }
   }
 
   private loseLife() {
@@ -180,7 +188,6 @@ export class Game {
     this.wordsPerWave = Math.min(35, 18 + this.wave * 3);
     this.totalWordsSpawned = 0;
 
-    // Wave transition
     if (this.wave > 2) {
       this.phase = 'waveTransition';
       this.waveTransTimer = this.waveTransDuration;
@@ -198,30 +205,30 @@ export class Game {
       case 'fire': {
         const snapshot = [...this.words];
         for (const w of snapshot) {
-          if (!w.destroying) this.destroyWord(w, true);
+          if (!w.destroying) this.destroyWord(w, true, 'fire');
         }
-        this.renderer.showScreenFlash('#ef4444');
+        this.renderer.showScreenFlash('rgba(239,68,68,0.4)');
         break;
       }
       case 'lightning': {
         const longest = this.words
           .filter(w => !w.destroying)
           .sort((a, b) => b.entry.text.length - a.entry.text.length)[0];
-        if (longest) this.destroyWord(longest);
-        this.renderer.showScreenFlash('#eab308');
+        if (longest) this.destroyWord(longest, false, 'lightning');
+        this.renderer.showScreenFlash('rgba(234,179,8,0.4)');
         break;
       }
       case 'shield':
         this.shieldTimer = 5;
         this.renderer.showShieldFlash();
-        this.renderer.showScreenFlash('#6366f1');
+        this.renderer.showScreenFlash('rgba(99,102,241,0.4)');
         break;
       case 'chain': {
         const bottom = this.words
           .filter(w => !w.destroying)
           .sort((a, b) => b.y - a.y)[0];
         if (bottom) {
-          this.destroyWord(bottom);
+          this.destroyWord(bottom, false, 'chain');
           for (const w of this.words) {
             if (!w.destroying && w !== bottom) {
               const dist = Math.abs(w.y - bottom.y) + Math.abs(w.x - bottom.x);
@@ -230,7 +237,7 @@ export class Game {
               }
             }
           }
-          this.renderer.showScreenFlash('#f97316');
+          this.renderer.showScreenFlash('rgba(249,115,22,0.4)');
         }
         break;
       }
@@ -250,7 +257,6 @@ export class Game {
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
     this.lastTime = time;
 
-    // Wave transition
     if (this.phase === 'waveTransition') {
       this.waveTransTimer -= dt;
       this.renderer.clear(false);
@@ -304,7 +310,6 @@ export class Game {
 
     this.words = this.words.filter(w => !(w.destroying && w.opacity <= 0 && w.destroyTimer <= -0.1));
 
-    // Render
     this.renderer.clear(frozen);
     this.renderer.drawWords(this.words, this.activeTarget);
     this.renderer.updateAndDrawParticles(dt);
