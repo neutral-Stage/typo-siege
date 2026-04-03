@@ -258,7 +258,18 @@ function updateUI() {
     const fill = el.querySelector('.charge-fill') as HTMLElement;
     const pct = (pu.charge / pu.maxCharge) * 100;
     fill.style.width = `${pct}%`;
-    el.classList.toggle('charged', pu.charge >= pu.maxCharge);
+    el.classList.toggle('charged', pu.stacks > 0);
+
+    // Show stack count
+    let stackBadge = el.querySelector('.stack-count') as HTMLElement;
+    if (!stackBadge) {
+      stackBadge = document.createElement('div');
+      stackBadge.className = 'stack-count';
+      stackBadge.style.cssText = 'position:absolute;top:2px;right:4px;font-size:11px;font-weight:800;color:#67e8f9;text-shadow:0 0 6px rgba(103,232,249,0.6);pointer-events:none;';
+      el.appendChild(stackBadge);
+    }
+    stackBadge.textContent = pu.stacks > 0 ? `×${pu.stacks}` : '';
+    stackBadge.style.display = pu.stacks > 0 ? '' : 'none';
   }
 
   // Taunts on combo milestones
