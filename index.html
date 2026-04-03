@@ -306,6 +306,137 @@
       margin-bottom: 26px;
       font-variant-numeric: tabular-nums;
     }
+
+    /* ── Mobile / Tablet ── */
+    #mobile-input {
+      position: fixed;
+      top: -100px;
+      left: -100px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      font-size: 16px; /* prevents iOS zoom */
+    }
+
+    @media (max-width: 768px) {
+      #hud {
+        padding: 10px 12px;
+      }
+      .hud-item {
+        padding: 5px 10px;
+        font-size: 13px;
+        border-radius: 8px;
+      }
+      .hud-item .label {
+        font-size: 8px;
+        margin-right: 4px;
+      }
+      #lives-display {
+        padding: 5px 10px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      #input-display {
+        bottom: 90px;
+        padding: 8px 18px;
+        font-size: 18px;
+        border-radius: 12px;
+        min-width: 100px;
+      }
+      #input-display .cursor {
+        height: 18px;
+      }
+      #power-ups {
+        bottom: 16px;
+        right: 12px;
+        gap: 6px;
+      }
+      .power-up {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        font-size: 20px;
+      }
+      .power-up .key-hint {
+        display: none; /* hide key hints on mobile */
+      }
+      #overlay h1 {
+        font-size: clamp(40px, 12vw, 64px);
+      }
+      #overlay .subtitle {
+        font-size: 13px;
+        padding: 0 24px;
+        text-align: center;
+        margin-bottom: 28px;
+      }
+      #start-btn {
+        padding: 12px 36px;
+        font-size: 15px;
+      }
+      #overlay .final-score .big {
+        font-size: 40px;
+      }
+      #overlay .final-score {
+        font-size: 15px;
+      }
+      #menu-highscore {
+        font-size: 12px;
+        margin-bottom: 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hud-item {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+      .hud-item .label {
+        font-size: 7px;
+      }
+      #input-display {
+        bottom: 80px;
+        padding: 6px 14px;
+        font-size: 16px;
+        min-width: 80px;
+      }
+      .power-up {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+        border-radius: 10px;
+      }
+      #overlay h1 {
+        font-size: clamp(36px, 14vw, 52px);
+      }
+      #overlay .subtitle {
+        font-size: 12px;
+      }
+    }
+
+    /* Landscape phones */
+    @media (max-height: 500px) {
+      #hud {
+        padding: 6px 12px;
+      }
+      .hud-item {
+        padding: 3px 8px;
+        font-size: 11px;
+      }
+      #input-display {
+        bottom: 60px;
+        padding: 5px 12px;
+        font-size: 14px;
+      }
+      #power-ups {
+        bottom: 10px;
+        gap: 4px;
+      }
+      .power-up {
+        width: 38px;
+        height: 38px;
+        font-size: 16px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -362,5 +493,6 @@
   </div>
 
   <script type="module" src="/src/main.ts"></script>
+  <input id="mobile-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
 </body>
 </html>

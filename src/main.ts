@@ -93,6 +93,7 @@ startBtn.addEventListener('click', () => {
   game.start();
   overlay.classList.add('hidden');
   updateUI();
+  focusMobileInput();
 });
 
 // Power-up click handlers with feedback
@@ -130,6 +131,54 @@ function flashPowerUp(id: string) {
 
 // Show initial menu state
 showMenu();
+
+// ── Mobile touch support ──
+const mobileInput = document.getElementById('mobile-input') as HTMLInputElement;
+
+// Keep hidden input focused during gameplay to capture mobile keyboard
+function focusMobileInput() {
+  if (game.isPlaying) {
+    mobileInput.focus({ preventScroll: true });
+  }
+}
+
+// Tap on game area focuses hidden input (opens keyboard on mobile)
+canvas.addEventListener('touchstart', (e) => {
+  if (game.isPlaying) {
+    e.preventDefault();
+    focusMobileInput();
+  }
+}, { passive: false });
+
+// Also focus when overlay hides (game starts)
+const observer = new MutationObserver(() => {
+  if (!overlay.classList.contains('hidden')) {
+    mobileInput.blur();
+  }
+});
+observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+
+// Capture mobile input
+mobileInput.addEventListener('input', (e) => {
+  if (!game.isPlaying) return;
+  const target = e.target as HTMLInputElement;
+  const value = target.value;
+  if (value.length > 0) {
+    // Process each character typed
+    for (const char of value) {
+      game.handleKey(char);
+    }
+    target.value = '';
+  }
+  focusMobileInput();
+});
+
+// Prevent blur during gameplay
+mobileInput.addEventListener('blur', () => {
+  if (game.isPlaying) {
+    setTimeout(focusMobileInput, 100);
+  }
+});
 
 // Game loop
 function loop(time: number) {
