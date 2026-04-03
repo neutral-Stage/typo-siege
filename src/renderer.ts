@@ -1,10 +1,8 @@
+import { getFont, getFontSize } from './entities';
 import type { FallingWord } from './entities';
 
-const FONT = '500 20px Inter, -apple-system, system-ui, sans-serif';
-const FONT_TYPED = '600 20px Inter, -apple-system, system-ui, sans-serif';
-const LINE_HEIGHT = 26;
-const PADDING_X = 16;
-const PADDING_Y = 10;
+const PADDING_X = 14;
+const PADDING_Y = 8;
 
 // Colors
 const C_BG = '#0f0f13';
@@ -196,7 +194,7 @@ export class Renderer {
       }
       this.particles.push({
         x: charX, y: charY, vx, vy, char, opacity: 1,
-        font: effect === 'lightning' ? FONT_TYPED : FONT, size: 20,
+        font: effect === 'lightning' ? getFont(this.width, 600) : getFont(this.width), size: getFontSize(this.width),
         rotation: 0, vr: effect === 'shield' ? 0 : (Math.random() - 0.5) * 10,
         color, effect, life: maxLife, maxLife,
         scale: effect === 'shield' ? 1.3 : 1,
@@ -542,29 +540,30 @@ export class Renderer {
     }
 
     // ─── Draw characters ───
+    const fs = getFontSize(this.width);
     const textY = word.y + PADDING_Y;
     let textX = word.x + PADDING_X;
 
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       if (i < typed) {
-        ctx.font = isBoss ? '700 20px Inter, sans-serif' : FONT_TYPED;
+        ctx.font = isBoss ? `700 ${getFontSize(this.width)}px Inter, sans-serif` : getFont(this.width, 600);
         ctx.fillStyle = isBoss ? `rgba(252,165,165,${word.opacity})` : `rgba(99,102,241,${word.opacity})`;
         // Typed char glow
         ctx.shadowColor = isBoss ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
         ctx.shadowBlur = 4;
       } else if (word.destroying) {
-        ctx.font = FONT;
+        ctx.font = getFont(this.width);
         ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.4})`;
         ctx.shadowBlur = 0;
       } else {
-        ctx.font = FONT;
+        ctx.font = getFont(this.width);
         ctx.fillStyle = isBoss
           ? `rgba(252,165,165,${word.opacity * 0.75})`
           : `rgba(255,255,255,${word.opacity * (isTarget ? 0.8 : 0.45)})`;
         ctx.shadowBlur = 0;
       }
-      ctx.fillText(char, textX, textY + 20);
+      ctx.fillText(char, textX, textY + fs);
       ctx.shadowBlur = 0;
       textX += ctx.measureText(char).width + 0.5;
     }
@@ -576,11 +575,11 @@ export class Renderer {
       ctx.shadowColor = isBoss ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
       ctx.shadowBlur = 6;
       ctx.beginPath();
-      ctx.moveTo(word.x + PADDING_X, textY + 24);
+      ctx.moveTo(word.x + PADDING_X, textY + fs + 4);
       let ulW = 0;
-      ctx.font = FONT_TYPED;
+      ctx.font = getFont(this.width, 600);
       for (let i = 0; i < typed; i++) ulW += ctx.measureText(text[i]).width + 0.5;
-      ctx.lineTo(word.x + PADDING_X + ulW, textY + 24);
+      ctx.lineTo(word.x + PADDING_X + ulW, textY + fs + 4);
       ctx.stroke();
       ctx.shadowBlur = 0;
     }

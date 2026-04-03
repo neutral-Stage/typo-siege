@@ -30,6 +30,7 @@ const achToast = document.getElementById('achievement-toast')!;
 const achIcon = document.getElementById('ach-icon')!;
 const achTitle = document.getElementById('ach-title')!;
 const achDesc = document.getElementById('ach-desc')!;
+const tapHint = document.getElementById('tap-hint')!;
 
 // Power-up UI
 const puElements: Record<string, HTMLElement> = {
@@ -387,14 +388,39 @@ function flashPowerUp(id: string) {
 
 // ─── Mobile touch support ───
 const mobileInput = document.getElementById('mobile-input') as HTMLInputElement;
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 function focusMobileInput() {
   if (game.isPlaying) {
     mobileInput.focus({ preventScroll: true });
+    tapHint.classList.remove('visible');
   }
 }
 
+function showTapHint() {
+  if (isTouchDevice && game.isPlaying) {
+    tapHint.classList.add('visible');
+  }
+}
+
+// Show hint on game start
+startBtn.addEventListener('click', () => {
+  // Will show hint after overlay hides
+  setTimeout(showTapHint, 500);
+});
+
+// Tap anywhere on canvas to focus
 canvas.addEventListener('touchstart', (e) => {
+  if (game.isPlaying) {
+    e.preventDefault();
+    focusMobileInput();
+  }
+}, { passive: false });
+
+// Also tap on the game wrapper (catches taps on empty areas)
+document.getElementById('game-wrapper')!.addEventListener('touchstart', (e) => {
+  // Don't intercept power-up taps
+  if ((e.target as HTMLElement).closest('.power-up')) return;
   if (game.isPlaying) {
     e.preventDefault();
     focusMobileInput();
@@ -404,6 +430,7 @@ canvas.addEventListener('touchstart', (e) => {
 const observer = new MutationObserver(() => {
   if (!overlay.classList.contains('hidden')) {
     mobileInput.blur();
+    tapHint.classList.remove('visible');
   }
 });
 observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
@@ -423,9 +450,32 @@ mobileInput.addEventListener('input', (e) => {
 
 mobileInput.addEventListener('blur', () => {
   if (game.isPlaying) {
-    setTimeout(focusMobileInput, 100);
+    setTimeout(() => {
+      focusMobileInput();
+      // If refocus fails (user scrolled away), show hint
+      setTimeout(() => {
+        if (document.activeElement !== mobileInput && game.isPlaying) {
+          showTapHint();
+        }
+      }, 200);
+    }, 100);
   }
 });
+
+// Prevent pull-to-refresh and scroll on mobile
+document.addEventListener('touchmove', (e) => {
+  if (game.isPlaying) e.preventDefault();
+}, { passive: false });
+
+// Prevent double-tap zoom
+let lastTap = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    e.preventDefault();
+  }
+  lastTap = now;
+}, { passive: false });
 
 // ─── Init ───
 showMenu();

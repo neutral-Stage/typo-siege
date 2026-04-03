@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>TYPO SIEGE — Text Tower Defense</title>
   <meta name="description" content="A text tower defense game. Type falling words to destroy them. Charge power-ups. Survive the siege." />
   <meta property="og:title" content="TYPO SIEGE — Text Tower Defense" />
@@ -469,48 +469,146 @@
       width: 1px;
       height: 1px;
       opacity: 0;
-      font-size: 16px;
+      font-size: 16px; /* prevents iOS zoom */
     }
 
-    @media (max-width: 768px) {
-      #hud { padding: 10px 12px; }
-      .hud-item { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
-      .hud-item .label { font-size: 8px; margin-right: 4px; }
-      #lives-display { padding: 5px 10px; border-radius: 8px; font-size: 14px; }
-      #input-display { bottom: 90px; padding: 8px 18px; font-size: 18px; border-radius: 12px; min-width: 100px; }
+    /* Tap-to-type hint */
+    #tap-hint {
+      position: absolute;
+      bottom: 140px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3);
+      backdrop-filter: blur(12px);
+      padding: 10px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #a5b4fc;
+      z-index: 11;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+      animation: tapHintPulse 2s ease-in-out infinite;
+    }
+    #tap-hint.visible { opacity: 1; }
+    @keyframes tapHintPulse {
+      0%, 100% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.04); }
+    }
+
+    /* Mobile game area — bottom safe zone for controls */
+    #mobile-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: none;
+    }
+
+    @media (max-width: 768px), (pointer: coarse) {
+      body {
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: none;
+        overscroll-behavior: none;
+      }
+      #game-wrapper {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+
+      /* Show tap hint */
+      #tap-hint { display: block; }
+
+      /* HUD compact */
+      #hud { padding: 8px 10px; gap: 6px; }
+      .hud-section { gap: 6px; }
+      .hud-item { padding: 4px 10px; font-size: 13px; border-radius: 8px; }
+      .hud-item .label { font-size: 8px; margin-right: 3px; }
+      #lives-display { padding: 4px 8px; border-radius: 8px; font-size: 13px; gap: 3px; }
+
+      /* Input display — above power-ups */
+      #input-display {
+        bottom: 90px;
+        left: 12px;
+        right: auto;
+        transform: none;
+        padding: 8px 16px;
+        font-size: 18px;
+        border-radius: 12px;
+        min-width: 80px;
+        max-width: 60vw;
+      }
       #input-display .cursor { height: 18px; }
-      #power-ups { bottom: 16px; right: 12px; gap: 6px; }
-      .power-up { width: 48px; height: 48px; border-radius: 12px; font-size: 20px; }
+
+      /* Power-ups — bigger, bottom-left row */
+      #power-ups {
+        bottom: 14px;
+        right: auto;
+        left: 12px;
+        gap: 8px;
+      }
+      .power-up {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        font-size: 24px;
+      }
       .power-up .key-hint { display: none; }
+      .power-up .charge-bar { height: 3px; }
+      .power-up .charge-fill { border-radius: 0 1px 1px 0; }
+
+      /* Overlay */
       #overlay h1 { font-size: clamp(40px, 12vw, 64px); }
-      #overlay .subtitle { font-size: 13px; padding: 0 24px; text-align: center; margin-bottom: 16px; }
-      #start-btn { padding: 12px 36px; font-size: 15px; }
-      #overlay .final-score .big { font-size: 40px; }
-      #overlay .final-score { font-size: 15px; }
+      #overlay .subtitle { font-size: 13px; padding: 0 20px; text-align: center; margin-bottom: 14px; }
+      #start-btn { padding: 14px 40px; font-size: 16px; }
+      #overlay .final-score .big { font-size: 44px; }
+      #overlay .final-score { font-size: 14px; }
       #menu-highscore { font-size: 12px; }
-      #menu-stats { gap: 8px; margin-bottom: 16px; }
+      #menu-stats { gap: 6px; margin-bottom: 14px; }
       .stat-pill { padding: 4px 10px; font-size: 11px; }
-      #difficulty-selector { gap: 6px; margin-bottom: 20px; }
-      .diff-btn { padding: 5px 12px; font-size: 11px; }
+      #difficulty-selector { gap: 6px; margin-bottom: 18px; }
+      .diff-btn { padding: 8px 16px; font-size: 12px; }
       #built-by { font-size: 10px; bottom: 8px; }
       #achievement-toast { padding: 12px 20px; }
+      #taunt-display { font-size: 14px; top: 56px; }
+      #combo-display { font-size: 22px; top: 80px; }
     }
 
     @media (max-width: 480px) {
-      .hud-item { padding: 4px 8px; font-size: 12px; }
-      .hud-item .label { font-size: 7px; }
-      #input-display { bottom: 80px; padding: 6px 14px; font-size: 16px; min-width: 80px; }
-      .power-up { width: 42px; height: 42px; font-size: 18px; border-radius: 10px; }
+      .hud-item { padding: 3px 8px; font-size: 12px; }
+      #input-display {
+        bottom: 84px;
+        padding: 6px 12px;
+        font-size: 16px;
+        max-width: 55vw;
+      }
+      .power-up { width: 50px; height: 50px; font-size: 22px; border-radius: 12px; }
       #overlay h1 { font-size: clamp(36px, 14vw, 52px); }
       #overlay .subtitle { font-size: 12px; }
+      #start-btn { padding: 12px 32px; }
+      #difficulty-selector { gap: 4px; }
+      .diff-btn { padding: 6px 12px; font-size: 11px; }
     }
 
-    @media (max-height: 500px) {
-      #hud { padding: 6px 12px; }
-      .hud-item { padding: 3px 8px; font-size: 11px; }
-      #input-display { bottom: 60px; padding: 5px 12px; font-size: 14px; }
-      #power-ups { bottom: 10px; gap: 4px; }
+    @media (max-height: 500px) and (orientation: landscape) {
+      #hud { padding: 4px 10px; }
+      .hud-item { padding: 2px 8px; font-size: 11px; }
+      #input-display { bottom: 56px; padding: 4px 12px; font-size: 14px; }
+      #power-ups { bottom: 8px; gap: 4px; }
+      .power-up { width: 42px; height: 42px; font-size: 18px; }
+      #tap-hint { bottom: 110px; font-size: 12px; padding: 6px 16px; }
+    }
+
+    /* Large phone landscape */
+    @media (max-width: 926px) and (orientation: landscape) and (max-height: 500px) {
       .power-up { width: 38px; height: 38px; font-size: 16px; }
+      #input-display { bottom: 52px; font-size: 14px; }
     }
   </style>
 </head>
@@ -530,6 +628,8 @@
 
     <div id="taunt-display"></div>
     <div id="combo-display"></div>
+
+    <div id="tap-hint">👆 Tap anywhere to start typing</div>
 
     <div id="input-display">
       <span id="typed-text"></span><span class="cursor"></span>

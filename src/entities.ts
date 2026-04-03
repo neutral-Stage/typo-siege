@@ -18,26 +18,40 @@ export interface FallingWord {
 
 let nextId = 0;
 
-const FONT = '500 20px Inter, -apple-system, system-ui, sans-serif';
-const PADDING_X = 16;
-const PADDING_Y = 10;
-const LINE_HEIGHT = 26;
+const BASE_FONT_SIZE = 20;
+
+/** Get font size scaled for screen */
+export function getFontSize(canvasWidth: number): number {
+  if (canvasWidth < 400) return 15;
+  if (canvasWidth < 600) return 17;
+  return BASE_FONT_SIZE;
+}
+
+/** Get the font string for a given canvas width */
+export function getFont(canvasWidth: number, weight = 500): string {
+  return `${weight} ${getFontSize(canvasWidth)}px Inter, -apple-system, system-ui, sans-serif`;
+}
+
+const PADDING_X = 14;
+const PADDING_Y = 8;
 
 /** Compute the natural (single-line) width of text */
-function measureNaturalWidth(text: string): number {
+function measureNaturalWidth(text: string, canvasWidth: number): number {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  ctx.font = FONT;
+  ctx.font = getFont(canvasWidth);
   return ctx.measureText(text).width;
 }
 
 export function createFallingWord(entry: WordEntry, canvasWidth: number, speedMult: number): FallingWord {
-  const textWidth = measureNaturalWidth(entry.text);
+  const fontSize = getFontSize(canvasWidth);
+  const lineHeight = fontSize + 6;
+  const textWidth = measureNaturalWidth(entry.text, canvasWidth);
   const totalWidth = textWidth + PADDING_X * 2;
-  const totalHeight = LINE_HEIGHT + PADDING_Y * 2;
+  const totalHeight = lineHeight + PADDING_Y * 2;
 
-  const maxX = canvasWidth - totalWidth - 20;
-  const x = 20 + Math.random() * Math.max(0, maxX);
+  const maxX = canvasWidth - totalWidth - 10;
+  const x = 10 + Math.random() * Math.max(0, maxX);
 
   return {
     id: nextId++,
