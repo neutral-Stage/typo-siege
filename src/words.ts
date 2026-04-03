@@ -151,14 +151,14 @@ export const WORDS: WordEntry[] = [
 ];
 
 export function getWordsForWave(wave: number): WordEntry[] {
-  if (wave <= 2) return WORDS.filter(w => w.difficulty <= 1);
-  if (wave <= 4) return WORDS.filter(w => w.difficulty <= 1.5);
-  if (wave <= 7) return WORDS.filter(w => w.difficulty <= 2);
+  if (wave <= 1) return WORDS.filter(w => w.difficulty <= 1.5);
+  if (wave <= 3) return WORDS.filter(w => w.difficulty <= 2);
+  if (wave <= 5) return WORDS.filter(w => w.difficulty <= 3);
   return WORDS;
 }
 
 export function getSpawnInterval(wave: number): number {
-  return Math.max(600, 1800 - wave * 120);
+  return Math.max(500, 1400 - wave * 100);
 }
 
 export function getSpeedMultiplier(wave: number): number {
