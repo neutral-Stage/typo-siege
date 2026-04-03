@@ -38,6 +38,10 @@ export class Game {
   private totalWordsDestroyed = 0;
   private totalCharsTyped = 0;
 
+  private emitState() {
+    this.onStateChange?.();
+  }
+
   constructor(private canvas: HTMLCanvasElement, onStateChange?: () => void) {
     this.renderer = new Renderer(canvas);
     this.powerUps = createPowerUps();
