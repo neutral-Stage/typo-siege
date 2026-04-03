@@ -17,7 +17,7 @@ export class Game {
   private combo = 0;
   private maxCombo = 0;
   private wordsDestroyedInWave = 0;
-  private wordsPerWave = 12;
+  private wordsPerWave = 18;
   private totalWordsSpawned = 0;
   private spawnTimer = 0;
   private shieldTimer = 0;
@@ -107,6 +107,25 @@ export class Game {
     this.emitState();
   }
 
+  /** Returns true if a power-up was activated or a letter was typed */
+  handleKeyWithFeedback(key: string): boolean {
+    if (this.phase !== 'playing') return false;
+
+    // Check if it's a power-up key
+    const isPUKey = ['1', '2', '3', '4'].includes(key);
+    if (isPUKey) {
+      const puType = isPowerUpKey(key, this.powerUps);
+      if (puType) {
+        this.activatePowerUp(puType);
+        return true;
+      }
+      return false; // not charged
+    }
+
+    this.handleKey(key);
+    return true;
+  }
+
   private destroyWord(word: FallingWord, silent = false) {
     word.destroying = true;
     word.destroyTimer = 0.4;
@@ -158,7 +177,7 @@ export class Game {
   private nextWave() {
     this.wave++;
     this.wordsDestroyedInWave = 0;
-    this.wordsPerWave = Math.min(25, 12 + this.wave * 2);
+    this.wordsPerWave = Math.min(35, 18 + this.wave * 3);
     this.totalWordsSpawned = 0;
 
     // Wave transition

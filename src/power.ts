@@ -9,10 +9,10 @@ export interface PowerUpState {
 }
 
 export const POWER_UP_CONFIG: Record<PowerUpType, Omit<PowerUpState, 'charge'>> = {
-  fire:      { type: 'fire',      emoji: '🔥', maxCharge: 100, key: '1' },
-  lightning: { type: 'lightning', emoji: '⚡', maxCharge: 60,  key: '2' },
-  shield:    { type: 'shield',    emoji: '🛡️', maxCharge: 80,  key: '3' },
-  chain:     { type: 'chain',     emoji: '💥', maxCharge: 70,  key: '4' },
+  fire:      { type: 'fire',      emoji: '🔥', maxCharge: 40, key: '1' },
+  lightning: { type: 'lightning', emoji: '⚡', maxCharge: 25, key: '2' },
+  shield:    { type: 'shield',    emoji: '🛡️', maxCharge: 35, key: '3' },
+  chain:     { type: 'chain',     emoji: '💥', maxCharge: 30, key: '4' },
 };
 
 export function createPowerUps(): PowerUpState[] {
@@ -20,7 +20,7 @@ export function createPowerUps(): PowerUpState[] {
 }
 
 export function chargeAmount(wordLength: number, difficulty: number): number {
-  return Math.ceil(wordLength * difficulty * 1.5);
+  return Math.ceil(wordLength * difficulty * 3);
 }
 
 export function distributeCharge(powerUps: PowerUpState[], amount: number): void {

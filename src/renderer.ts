@@ -6,13 +6,13 @@ const LINE_HEIGHT = 26;
 const PADDING_X = 16;
 const PADDING_Y = 10;
 
-// Colors
-const C_BG = '#fafafa';
-const C_WORD_BG = 'rgba(0,0,0,0.04)';
-const C_WORD_BG_TARGET = 'rgba(99,102,241,0.08)';
-const C_TYPED = '#6366f1';
-const C_UNTYPED = '#333';
-const C_DESTROYING = '#6366f1';
+// Colors — dark theme
+const C_BG = '#0f0f13';
+const C_WORD_BG = 'rgba(255,255,255,0.06)';
+const C_WORD_BG_TARGET = 'rgba(99,102,241,0.12)';
+const C_TYPED = '#67e8f9';
+const C_UNTYPED = 'rgba(255,255,255,0.7)';
+const C_DESTROYING = '#a5b4fc';
 
 interface Particle {
   x: number;
@@ -85,17 +85,17 @@ export class Renderer {
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#fafafa';
+    ctx.fillStyle = '#0f0f13';
     ctx.fillRect(0, 0, W, H);
 
     ctx.globalAlpha = alpha;
     ctx.font = '700 72px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = '#a5b4fc';
     ctx.textAlign = 'center';
     ctx.fillText(`WAVE ${wave}`, W / 2, H / 2 - 16);
 
     ctx.font = '400 18px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillText('Get ready!', W / 2, H / 2 + 24);
     ctx.textAlign = 'start';
     ctx.restore();
@@ -129,7 +129,7 @@ export class Renderer {
     this.ctx.fillRect(0, 0, this.width, this.height);
 
     // Subtle grid lines
-    this.ctx.strokeStyle = 'rgba(0,0,0,0.02)';
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.02)';
     this.ctx.lineWidth = 1;
     for (let y = 0; y < this.height; y += 40) {
       this.ctx.beginPath();
@@ -208,7 +208,7 @@ export class Renderer {
         ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.5})`;
       } else {
         ctx.font = FONT;
-        ctx.fillStyle = `rgba(51,51,51,${word.opacity * (isTarget ? 1 : 0.7)})`;
+        ctx.fillStyle = `rgba(255,255,255,${word.opacity * (isTarget ? 0.85 : 0.5)})`;
       }
       ctx.fillText(char, textX, textY + 20);
       textX += ctx.measureText(char).width + 0.5;
@@ -261,7 +261,7 @@ export class Renderer {
     ctx.save();
     ctx.globalAlpha = this.comboOpacity;
     ctx.font = '700 24px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = '#6366f1';
+    ctx.fillStyle = '#a5b4fc';
     ctx.textAlign = 'center';
     ctx.fillText(this.comboText, this.width / 2, 100);
     ctx.textAlign = 'start';

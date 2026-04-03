@@ -95,19 +95,38 @@ startBtn.addEventListener('click', () => {
   updateUI();
 });
 
-// Power-up click handlers
+// Power-up click handlers with feedback
 document.getElementById('pu-fire')!.addEventListener('click', () => {
-  if (game.isPlaying) game.handleKey('1');
+  if (game.isPlaying) {
+    const worked = game.handleKeyWithFeedback('1');
+    if (!worked) flashPowerUp('pu-fire');
+  }
 });
 document.getElementById('pu-lightning')!.addEventListener('click', () => {
-  if (game.isPlaying) game.handleKey('2');
+  if (game.isPlaying) {
+    const worked = game.handleKeyWithFeedback('2');
+    if (!worked) flashPowerUp('pu-lightning');
+  }
 });
 document.getElementById('pu-shield')!.addEventListener('click', () => {
-  if (game.isPlaying) game.handleKey('3');
+  if (game.isPlaying) {
+    const worked = game.handleKeyWithFeedback('3');
+    if (!worked) flashPowerUp('pu-shield');
+  }
 });
 document.getElementById('pu-chain')!.addEventListener('click', () => {
-  if (game.isPlaying) game.handleKey('4');
+  if (game.isPlaying) {
+    const worked = game.handleKeyWithFeedback('4');
+    if (!worked) flashPowerUp('pu-chain');
+  }
 });
+
+function flashPowerUp(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.outline = '2px solid rgba(239,68,68,0.6)';
+  setTimeout(() => { el.style.outline = ''; }, 300);
+}
 
 // Show initial menu state
 showMenu();
