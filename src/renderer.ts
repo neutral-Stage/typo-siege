@@ -1169,7 +1169,7 @@ export class Renderer {
     ctx.rotate(rotation);
     ctx.globalAlpha = opacity;
 
-    const armGrad = ctx.createLinearGradient(0, -armThickness, side * armLength, armThickness * 1.4);
+    const armGrad = ctx.createLinearGradient(0, 0, side * armLength, armThickness * 0.5);
     armGrad.addColorStop(0, shell.fill2);
     armGrad.addColorStop(1, shell.dark);
     ctx.strokeStyle = armGrad;
@@ -1177,14 +1177,14 @@ export class Renderer {
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(side * armLength * 0.18, -armThickness * 0.2, side * armLength * 0.56, armThickness * 0.3, side * armLength, armThickness * 0.22);
+    ctx.bezierCurveTo(side * armLength * 0.18, armThickness * 0.2, side * armLength * 0.56, armThickness * 0.5, side * armLength, armThickness * 0.22);
     ctx.stroke();
 
     ctx.strokeStyle = shell.stroke;
     ctx.lineWidth = Math.max(2, armThickness * 0.34);
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(side * armLength * 0.18, -armThickness * 0.2, side * armLength * 0.56, armThickness * 0.3, side * armLength, armThickness * 0.22);
+    ctx.bezierCurveTo(side * armLength * 0.18, armThickness * 0.2, side * armLength * 0.56, armThickness * 0.5, side * armLength, armThickness * 0.22);
     ctx.stroke();
 
     const clawBaseX = side * armLength;
