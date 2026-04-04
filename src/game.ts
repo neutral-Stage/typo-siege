@@ -240,7 +240,7 @@ export class Game {
 
     switch (type) {
       case 'fire': {
-        const snapshot = this.words.filter(w => !w.destroying);
+        const snapshot = this.words.filter(w => !w.destroying && w.entry.difficulty < 5);
 
         let waveProgress = 0;
         for (const w of snapshot) {
@@ -253,7 +253,7 @@ export class Game {
       }
       case 'lightning': {
         const longest = this.words
-          .filter(w => !w.destroying)
+          .filter(w => !w.destroying && w.entry.difficulty < 5)
           .sort((a, b) => b.entry.text.length - a.entry.text.length)[0];
         if (longest) this.destroyWord(longest, false, 'lightning');
         this.renderer.showScreenFlash('rgba(234,179,8,0.4)');
@@ -266,12 +266,12 @@ export class Game {
         break;
       case 'chain': {
         const bottom = this.words
-          .filter(w => !w.destroying)
+          .filter(w => !w.destroying && w.entry.difficulty < 5)
           .sort((a, b) => b.y - a.y)[0];
         if (bottom) {
           this.destroyWord(bottom, false, 'chain');
           for (const w of this.words) {
-            if (!w.destroying && w !== bottom) {
+            if (!w.destroying && w !== bottom && w.entry.difficulty < 5) {
               const dist = Math.abs(w.y - bottom.y) + Math.abs(w.x - bottom.x);
               if (dist < 200) {
                 w.typed = Math.floor(w.entry.text.length * 0.5);
