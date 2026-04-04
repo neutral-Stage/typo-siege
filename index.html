@@ -348,6 +348,32 @@
       color: #fca5a5;
     }
     #exit-btn:active { transform: scale(0.95); }
+    #mute-btn {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      z-index: 50;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 0;
+    }
+    #mute-btn:hover {
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.8);
+    }
+    #mute-btn:active { transform: scale(0.9); }
     #new-highscore-badge {
       background: linear-gradient(135deg, #6366f1, #a5b4fc);
       color: white;
@@ -702,6 +728,7 @@
       <button id="start-btn">Start Game</button>
     </div>
 
+    <button id="mute-btn" style="display:none">🔊</button>
     <button id="exit-btn" style="display:none">🚪 Exit</button>
 
     <div id="achievement-toast">

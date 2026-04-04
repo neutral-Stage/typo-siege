@@ -1,5 +1,6 @@
 import { Game } from './game';
 import { TAUNTS } from './words';
+import { startMusic, stopMusic, toggleMute, isMusicMuted } from './audio';
 
 // ─── DOM elements ───
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -32,6 +33,7 @@ const achTitle = document.getElementById('ach-title')!;
 const achDesc = document.getElementById('ach-desc')!;
 const tapHint = document.getElementById('tap-hint')!;
 const exitBtn = document.getElementById('exit-btn')!;
+const muteBtn = document.getElementById('mute-btn')!;
 
 // Power-up UI
 const puElements: Record<string, HTMLElement> = {
@@ -248,6 +250,7 @@ function showMenu() {
   overlayStats.style.display = 'none';
   newHighscoreBadge.style.display = 'none';
   exitBtn.style.display = 'none';
+  muteBtn.style.display = 'none';
   startBtn.textContent = 'Start Game';
 
   const hs = game.savedHighScore;
@@ -263,6 +266,7 @@ function showMenu() {
 
 function showGameOver() {
   exitBtn.style.display = 'none';
+  muteBtn.style.display = 'none';
   overlayTitle.textContent = 'GAME OVER';
   overlaySubtitle.textContent = '';
   overlayStats.style.display = 'block';
@@ -350,6 +354,7 @@ function updateUI() {
     saveStats(stats);
 
     checkAchievements(game);
+    stopMusic();
 
     overlay.classList.remove('hidden');
     showGameOver();
@@ -361,12 +366,20 @@ document.addEventListener('keydown', (e) => {
   // Escape to exit during gameplay
   if (e.key === 'Escape' && game.isPlaying) {
     game.stop();
+    stopMusic();
     overlay.classList.remove('hidden');
     showMenu();
     return;
   }
 
-  if (!game.isPlaying) return;
+  if (!game.isPlaying) {
+    // M to toggle mute on menu only
+    if (e.key === 'm' || e.key === 'M') {
+      const muted = toggleMute();
+      muteBtn.textContent = muted ? '🔇' : '🔊';
+    }
+    return;
+  }
 
   if (e.key.length === 1 || ['1', '2', '3', '4'].includes(e.key)) {
     e.preventDefault();
@@ -383,6 +396,9 @@ function startGame() {
   game.start();
   overlay.classList.add('hidden');
   exitBtn.style.display = '';
+  muteBtn.style.display = '';
+  muteBtn.textContent = isMusicMuted() ? '🔇' : '🔊';
+  startMusic();
   builtBy.style.display = 'none';
   lastCombo = 0;
   bossTauntShown = false;
@@ -402,6 +418,7 @@ startBtn.addEventListener('touchend', (e) => {
 exitBtn.addEventListener('click', () => {
   if (game.isPlaying) {
     game.stop();
+    stopMusic();
     overlay.classList.remove('hidden');
     showMenu();
   }
@@ -410,9 +427,21 @@ exitBtn.addEventListener('touchend', (e) => {
   e.preventDefault();
   if (game.isPlaying) {
     game.stop();
+    stopMusic();
     overlay.classList.remove('hidden');
     showMenu();
   }
+});
+
+// Mute button
+muteBtn.addEventListener('click', () => {
+  const muted = toggleMute();
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+});
+muteBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  const muted = toggleMute();
+  muteBtn.textContent = muted ? '🔇' : '🔊';
 });
 
 // Power-up click handlers
