@@ -1,5 +1,6 @@
 import { getFont, getFontSize } from './entities';
 import type { FallingWord } from './entities';
+import { layoutWithLines, type PreparedTextWithSegments } from '@chenglou/pretext';
 
 const PADDING_X = 14;
 const PADDING_Y = 8;
@@ -21,6 +22,44 @@ const C_SAND_DARK = '#D2B48C';
 const C_FOAM = 'rgba(255,255,255,0.82)';
 const C_PALM = 'rgba(14,23,18,0.82)';
 const C_CRAB_OUTLINE = '#000000';
+const WORD_LAYOUT_MAX_WIDTH = Number.MAX_SAFE_INTEGER;
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+function getSegmentGraphemes(text: string): string[] {
+  const graphemes: string[] = [];
+  for (const part of graphemeSegmenter.segment(text)) {
+    graphemes.push(part.segment);
+  }
+  return graphemes;
+}
+
+function getPreparedGlyphs(prepared: PreparedTextWithSegments): PreparedGlyph[] {
+  const glyphs: PreparedGlyph[] = [];
+  let offset = 0;
+
+  for (let i = 0; i < prepared.segments.length; i++) {
+    const segment = prepared.segments[i]!;
+    const breakableWidths = prepared.breakableWidths[i];
+
+    if (breakableWidths && breakableWidths.length > 0) {
+      const graphemes = getSegmentGraphemes(segment);
+      for (let j = 0; j < graphemes.length; j++) {
+        const width = breakableWidths[j] ?? 0;
+        glyphs.push({ text: graphemes[j]!, width, offset });
+        offset += width;
+      }
+      continue;
+    }
+
+    if (prepared.kinds[i] === 'soft-hyphen') continue;
+
+    const width = prepared.widths[i] ?? 0;
+    glyphs.push({ text: segment, width, offset });
+    offset += width;
+  }
+
+  return glyphs;
+}
 
 export type DestroyEffect = 'normal' | 'fire' | 'lightning' | 'shield' | 'chain';
 
@@ -43,6 +82,12 @@ interface BoltEffect {
 interface LaserState {
   fromX: number; fromY: number; toX: number; toY: number;
   opacity: number; typed: number; total: number;
+}
+
+interface PreparedGlyph {
+  text: string;
+  width: number;
+  offset: number;
 }
 
 interface DayPhaseConfig {
@@ -120,6 +165,17 @@ export class Renderer {
     this.shakeIntensity = intensity;
     this.shakeDuration = duration;
     this.shakeTimer = duration;
+  }
+
+  private getWordGlyphs(word: FallingWord): PreparedGlyph[] {
+    return word.preparedHandle ? getPreparedGlyphs(word.preparedHandle) : [];
+  }
+
+  private getWordLineWidth(word: FallingWord): number {
+    if (!word.preparedHandle) return Math.max(0, word.width - PADDING_X * 2);
+    const lineHeight = getFontSize(this.width) + 6;
+    const { lines } = layoutWithLines(word.preparedHandle, WORD_LAYOUT_MAX_WIDTH, lineHeight);
+    return lines[0]?.width ?? 0;
   }
 
   drawWaveTransition(wave: number, progress: number) {
@@ -252,9 +308,11 @@ export class Renderer {
   private spawnEffectParticles(word: FallingWord, effect: DestroyEffect) {
     const text = word.entry.text;
     const cx = word.x + word.width / 2, cy = word.y + word.height / 2;
+    const glyphs = this.getWordGlyphs(word);
     for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const charX = word.x + PADDING_X + i * (this.ctx.measureText(char).width + 0.5);
+      const glyph = glyphs[i];
+      const char = glyph?.text ?? text[i]!;
+      const charX = word.x + PADDING_X + (glyph?.offset ?? i * 0.5);
       const charY = word.y + PADDING_Y;
       let vx: number, vy: number, color: string, maxLife: number;
       switch (effect) {
@@ -941,17 +999,14 @@ export class Renderer {
     const textY = cy + fs * 0.16;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    let advance = 0;
-    ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width);
     const letterSpacing = 0.5;
-    for (let i = 0; i < text.length; i++) {
-      advance += ctx.measureText(text[i]).width;
-      if (i < text.length - 1) advance += letterSpacing;
-    }
+    const glyphs = this.getWordGlyphs(word);
+    const lineWidth = this.getWordLineWidth(word);
+    const advance = glyphs.reduce((total, glyph, index) => total + glyph.width + (index < glyphs.length - 1 ? letterSpacing : 0), 0) || lineWidth;
     let textX = cx - advance / 2;
 
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
+    for (let i = 0; i < glyphs.length; i++) {
+      const char = glyphs[i]!.text;
       const outline = word.destroying ? `rgba(0,0,0,${word.opacity * 0.45})` : `rgba(0,0,0,${0.95 * word.opacity})`;
       ctx.strokeStyle = outline;
       ctx.lineWidth = isBoss ? 4 : 3;
@@ -976,7 +1031,7 @@ export class Renderer {
       ctx.fillText(char, textX, textY);
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
-      textX += ctx.measureText(char).width + letterSpacing;
+      textX += glyphs[i]!.width + letterSpacing;
     }
 
     if (typed > 0 && !word.destroying) {
@@ -986,9 +1041,9 @@ export class Renderer {
       ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.moveTo(cx - advance / 2, textY + fs * 0.52);
-      let ulW = 0;
-      ctx.font = getFont(this.width, 600);
-      for (let i = 0; i < typed; i++) ulW += ctx.measureText(text[i]).width + letterSpacing;
+      const ulW = glyphs
+        .slice(0, typed)
+        .reduce((total, glyph, index) => total + glyph.width + (index < typed - 1 ? letterSpacing : 0), 0);
       ctx.lineTo(cx - advance / 2 + ulW, textY + fs * 0.52);
       ctx.stroke();
       ctx.shadowBlur = 0;

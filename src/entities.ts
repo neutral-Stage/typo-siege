@@ -1,4 +1,5 @@
 import type { WordEntry } from './words';
+import { prepare, prepareWithSegments, type PreparedText, type PreparedTextWithSegments } from '@chenglou/pretext';
 
 export interface FallingWord {
   id: number;
@@ -15,6 +16,7 @@ export interface FallingWord {
   glowIntensity: number;
   spawnProgress: number;
   legPhase?: number;
+  preparedHandle?: PreparedTextWithSegments;
 }
 
 let nextId = 0;
@@ -36,18 +38,23 @@ export function getFont(canvasWidth: number, weight = 500): string {
 const PADDING_X = 14;
 const PADDING_Y = 8;
 
+type PreparedWidthHandle = PreparedText & { widths: number[] };
+
+function getPreparedWidth(prepared: PreparedText): number {
+  return (prepared as PreparedWidthHandle).widths.reduce((total, width) => total + width, 0);
+}
+
 /** Compute the natural (single-line) width of text */
 function measureNaturalWidth(text: string, canvasWidth: number): number {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
-  ctx.font = getFont(canvasWidth);
-  return ctx.measureText(text).width;
+  const prepared = prepare(text, getFont(canvasWidth));
+  return getPreparedWidth(prepared);
 }
 
 export function createFallingWord(entry: WordEntry, canvasWidth: number, speedMult: number, existingWords?: FallingWord[]): FallingWord {
   const fontSize = getFontSize(canvasWidth);
   const lineHeight = fontSize + 6;
   const textWidth = measureNaturalWidth(entry.text, canvasWidth);
+  const preparedHandle = prepareWithSegments(entry.text, getFont(canvasWidth));
   const totalWidth = textWidth + PADDING_X * 2;
   const totalHeight = lineHeight + PADDING_Y * 2;
 
@@ -86,6 +93,7 @@ export function createFallingWord(entry: WordEntry, canvasWidth: number, speedMu
     glowIntensity: 0,
     spawnProgress: 0,
     legPhase: Math.random() * Math.PI * 2,
+    preparedHandle,
   };
 }
 
