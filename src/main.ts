@@ -181,6 +181,25 @@ function randomFrom<T>(arr: T[]): T {
 let lastCombo = 0;
 
 // ─── Analytics (counterapi.dev — free, no signup) ───
+async function fetchCounterCount(
+  key: 'visits' | 'games',
+  target: HTMLElement | null,
+  fallback?: number,
+) {
+  if (!target) return;
+  try {
+    const res = await fetch(`https://api.counterapi.dev/v1/typo-siege-nyh5/${key}/`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (typeof data?.count !== 'number') throw new Error('Missing count');
+    target.textContent = String(data.count);
+    return;
+  } catch (e) {
+    console.warn(`counter fetch failed for ${key}`, e);
+  }
+  target.textContent = typeof fallback === 'number' ? String(fallback) : '—';
+}
+
 async function trackVisit() {
   try {
     await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/up/');
@@ -196,17 +215,10 @@ async function trackGame() {
 }
 
 async function fetchCounts() {
-  try {
-    const [vRes, gRes] = await Promise.all([
-      fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/'),
-      fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/games/'),
-    ]);
-    if (!vRes.ok || !gRes.ok) throw new Error(`HTTP ${vRes.status} ${gRes.status}`);
-    const vData = await vRes.json();
-    const gData = await gRes.json();
-    if (statVisits) statVisits.textContent = String(vData?.count ?? '—');
-    if (statTotalGames) statTotalGames.textContent = String(gData?.count ?? '—');
-  } catch (e) { console.warn('counter fetch failed', e); }
+  await Promise.allSettled([
+    fetchCounterCount('visits', statVisits),
+    fetchCounterCount('games', statTotalGames, stats.totalGames),
+  ]);
 }
 
 // Track visit on page load
