@@ -328,7 +328,8 @@
     #exit-btn {
       position: fixed;
       top: 12px;
-      left: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 50;
       padding: 8px 16px;
       font-size: 13px;
@@ -347,7 +348,7 @@
       border-color: rgba(239,68,68,0.3);
       color: #fca5a5;
     }
-    #exit-btn:active { transform: scale(0.95); }
+    #exit-btn:active { transform: translateX(-50%) scale(0.95); }
     #mute-btn {
       position: fixed;
       bottom: 16px;
@@ -728,7 +729,7 @@
       <button id="start-btn">Start Game</button>
     </div>
 
-    <button id="mute-btn" style="display:none">🔊</button>
+    <button id="mute-btn">🔊</button>
     <button id="exit-btn" style="display:none">🚪 Exit</button>
 
     <div id="achievement-toast">
