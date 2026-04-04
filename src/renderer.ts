@@ -123,23 +123,30 @@ export class Renderer {
   }
 
   drawWaveTransition(wave: number, progress: number) {
-    let alpha = progress > 0.5 ? (1 - progress) * 2 : progress * 2;
+    const alpha = progress > 0.5 ? (1 - progress) * 2 : progress * 2;
+    const phase = this.getDayPhase(wave);
     const ctx = this.ctx;
     ctx.save();
     ctx.globalAlpha = alpha;
     const grad = ctx.createLinearGradient(0, 0, 0, this.height);
-    grad.addColorStop(0, C_SKY_TOP);
-    grad.addColorStop(0.62, C_SKY_SUNSET);
-    grad.addColorStop(1, C_SAND_DARK);
+    grad.addColorStop(0, '#9edcff');
+    grad.addColorStop(0.45, '#63c8e8');
+    grad.addColorStop(0.72, '#ffd39a');
+    grad.addColorStop(1, '#c79056');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, this.width, this.height);
-    ctx.font = '700 72px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,248,220,0.92)';
+    ctx.fillStyle = 'rgba(255,247,228,0.12)';
+    ctx.fillRect(0, 0, this.width, this.height);
+    ctx.font = '900 72px "Arial Rounded MT Bold", "Trebuchet MS", sans-serif';
+    ctx.fillStyle = 'rgba(255,250,236,0.96)';
     ctx.textAlign = 'center';
     ctx.fillText(`WAVE ${wave}`, this.width / 2, this.height / 2 - 16);
-    ctx.font = '400 18px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.72)';
-    ctx.fillText('Get ready!', this.width / 2, this.height / 2 + 24);
+    ctx.font = '700 18px "Trebuchet MS", sans-serif';
+    ctx.fillStyle = 'rgba(118,73,35,0.96)';
+    ctx.fillText(phase.key.toUpperCase(), this.width / 2, this.height / 2 + 24);
+    ctx.font = '600 14px "Trebuchet MS", sans-serif';
+    ctx.fillStyle = 'rgba(92,132,145,0.96)';
+    ctx.fillText('Hold the shoreline', this.width / 2, this.height / 2 + 50);
     ctx.textAlign = 'start';
     ctx.restore();
   }
@@ -975,21 +982,25 @@ export class Renderer {
   }
 
   private getCrabPalette(danger: number, isBoss: boolean, opacity: number) {
-    const base = isBoss ? { r: 153, g: 27, b: 27 } : { r: 220, g: 38, b: 38 };
-    const top = isBoss ? { r: 185, g: 28, b: 28 } : { r: 239, g: 68, b: 68 };
-    const shadow = isBoss ? { r: 127, g: 29, b: 29 } : { r: 185, g: 28, b: 28 };
-    const tint = Math.round(danger * 10);
+    const base = isBoss ? { r: 166, g: 34, b: 38 } : { r: 219, g: 63, b: 58 };
+    const top = isBoss ? { r: 231, g: 81, b: 67 } : { r: 255, g: 118, b: 91 };
+    const shadow = isBoss ? { r: 92, g: 20, b: 32 } : { r: 136, g: 28, b: 35 };
+    const accent = isBoss ? { r: 118, g: 16, b: 28 } : { r: 108, g: 22, b: 32 };
+    const tint = Math.round(danger * 12);
     const a = Math.max(0.18, opacity);
     const rgba = (r: number, g: number, b: number, alpha = a) => `rgba(${r},${g},${b},${alpha})`;
     return {
       fill: rgba(base.r + tint, base.g + Math.round(danger * 6), base.b),
       fill2: rgba(top.r + tint, top.g + Math.round(danger * 5), top.b),
       dark: rgba(shadow.r + Math.round(danger * 5), shadow.g, shadow.b),
-      legAlt: rgba(Math.min(255, base.r + 18), Math.min(255, base.g + 24), Math.max(0, base.b - 6)),
+      accent: rgba(accent.r + Math.round(danger * 3), accent.g, accent.b),
+      legAlt: rgba(Math.min(255, base.r + 12), Math.min(255, base.g + 10), Math.max(0, base.b - 8)),
       stroke: `rgba(0,0,0,${opacity})`,
       eye: `rgba(255,255,255,${opacity})`,
-      pupil: `rgba(0,0,0,${opacity})`,
-      glow: isBoss ? `rgba(220,38,38,${0.22 + danger * 0.1})` : `rgba(239,68,68,${0.12 + danger * 0.05})`,
+      pupil: `rgba(15,12,10,${opacity})`,
+      shellLine: `rgba(103,18,28,${opacity * 0.34})`,
+      brow: `rgba(39,10,10,${opacity})`,
+      glow: isBoss ? `rgba(235,62,45,${0.26 + danger * 0.12})` : `rgba(232,86,67,${0.12 + danger * 0.06})`,
       crack: `rgba(255,220,190,${opacity * 0.18})`,
       crown: `rgba(245,198,59,${opacity})`,
     };
@@ -1014,214 +1025,358 @@ export class Renderer {
 
   private drawCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, targeted: boolean) {
     const ctx = this.ctx;
-    const px = this.getPixelSize(bodyW, bodyH);
-    const cols = Math.max(isBoss ? 16 : 14, Math.round(bodyW / px));
-    const rows = isBoss
-      ? [
-          Math.max(8, cols - 8),
-          cols - 4,
-          cols - 2,
-          cols,
-          cols,
-          cols - 1,
-          cols - 3,
-          cols - 6,
-        ]
-      : [
-          Math.max(8, cols - 6),
-          cols - 2,
-          cols,
-          cols,
-          cols - 1,
-          cols - 3,
-          cols - 5,
-        ];
-    const maxCols = Math.max(...rows);
-    const bodyX = cx - (maxCols * px) / 2;
-    const bodyY = cy - rows.length * px * 0.62;
+    const shellW = bodyW * 0.53;
+    const shellH = bodyH * 0.44;
+    const shellTop = cy - shellH * 0.74;
 
     ctx.save();
     ctx.globalAlpha = opacity;
+
     if (isBoss) {
-      const pulse = 0.6 + Math.sin(this.time * 4) * 0.2;
-      ctx.fillStyle = shell.glow;
+      const pulse = 0.72 + Math.sin(this.time * 4.2) * 0.12;
+      const glow = ctx.createRadialGradient(cx, cy - bodyH * 0.12, shellW * 0.2, cx, cy - bodyH * 0.12, shellW * 1.4);
+      glow.addColorStop(0, shell.glow);
+      glow.addColorStop(1, 'rgba(235,62,45,0)');
+      ctx.fillStyle = glow;
+      ctx.globalAlpha = opacity * pulse;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, bodyW * 0.72, bodyH * 0.62, 0, 0, Math.PI * 2);
-      ctx.globalAlpha = opacity * pulse * 0.55;
+      ctx.ellipse(cx, cy - bodyH * 0.1, shellW * 1.35, shellH * 1.25, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = opacity;
     }
-    for (let row = 0; row < rows.length; row++) {
-      const count = rows[row];
-      const offset = (maxCols - count) / 2;
-      for (let col = 0; col < count; col++) {
-        const x = bodyX + (offset + col) * px;
-        const y = bodyY + row * px;
-        const highlightBand = row <= 1 || (row === 2 && col > 1 && col < count - 2);
-        const shadowBand = row >= rows.length - 2 || (row === rows.length - 3 && (col < 2 || col > count - 3));
-        const fill = highlightBand ? shell.fill2 : shadowBand ? shell.dark : shell.fill;
-        this.pixelRect(x, y, px, px, fill, shell.stroke, 2.2);
-      }
-    }
-    this.pixelRect(bodyX + px * 2, bodyY + px * 2, px * 2, px, shell.fill2, shell.stroke, 2.2);
-    this.pixelRect(bodyX + maxCols * px - px * 4, bodyY + px * 2, px * 2, px, shell.fill2, shell.stroke, 2.2);
-    this.pixelRect(bodyX + px * 3, bodyY + rows.length * px - px * 2, px * 2, px, shell.dark, shell.stroke, 2.2);
-    this.pixelRect(bodyX + maxCols * px - px * 5, bodyY + rows.length * px - px * 2, px * 2, px, shell.dark, shell.stroke, 2.2);
-    ctx.restore();
 
-    ctx.save();
+    const bodyGrad = ctx.createLinearGradient(cx, shellTop, cx, shellTop + shellH * 2);
+    bodyGrad.addColorStop(0, shell.fill2);
+    bodyGrad.addColorStop(0.42, shell.fill);
+    bodyGrad.addColorStop(0.75, shell.dark);
+    bodyGrad.addColorStop(1, shell.accent);
+    ctx.fillStyle = bodyGrad;
     ctx.strokeStyle = shell.stroke;
-    ctx.lineWidth = 2.4;
-    this.traceCrabBody(cx, cy, bodyW, bodyH, isBoss);
+    ctx.lineWidth = isBoss ? 4 : 3;
+    this.traceSmoothCrabBody(cx, cy, shellW, shellH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(255,215,190,${opacity * 0.22})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, shellTop + shellH * 0.5, shellW * 0.78, shellH * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(82,11,18,${opacity * 0.2})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + shellH * 0.36, shellW * 0.88, shellH * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = shell.shellLine;
+    ctx.lineWidth = 1.3;
+    for (let i = -2; i <= 2; i++) {
+      const offset = i * shellW * 0.18;
+      ctx.beginPath();
+      ctx.moveTo(cx + offset * 0.82, shellTop + shellH * 0.32);
+      ctx.quadraticCurveTo(cx + offset, shellTop + shellH * 0.86, cx + offset * 0.74, shellTop + shellH * 1.45);
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(cx - shellW * 0.78, cy - shellH * 0.02);
+    ctx.quadraticCurveTo(cx, cy + shellH * 0.3, cx + shellW * 0.78, cy - shellH * 0.02);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(255,233,214,${opacity * 0.22})`;
+    ctx.beginPath();
+    ctx.moveTo(cx - shellW * 0.52, shellTop + shellH * 0.42);
+    ctx.quadraticCurveTo(cx - shellW * 0.12, shellTop + shellH * 0.2, cx + shellW * 0.24, shellTop + shellH * 0.36);
     ctx.stroke();
 
     if (targeted) {
-      ctx.strokeStyle = `rgba(103,232,249,${0.62 + Math.sin(this.time * 10) * 0.18})`;
-      ctx.lineWidth = 2.4;
-      ctx.setLineDash([5, 3]);
-      ctx.lineDashOffset = -this.time * 50;
-      this.traceCrabBody(cx, cy, bodyW * 1.04, bodyH * 1.08, isBoss);
+      ctx.strokeStyle = `rgba(86,205,222,${0.62 + Math.sin(this.time * 10) * 0.18})`;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -this.time * 60;
+      this.traceSmoothCrabBody(cx, cy - shellH * 0.02, shellW * 1.06, shellH * 1.06);
       ctx.stroke();
       ctx.setLineDash([]);
     }
 
     if (isBoss) {
-      const crownY = bodyY - px * 2;
-      const spikeY = bodyY - px;
       for (let i = -3; i <= 3; i++) {
-        if (i % 2 === 0) {
-          this.pixelRect(cx + i * px * 1.1, spikeY, px, px, shell.dark, shell.stroke, 2.2);
-        }
+        if (i === 0) continue;
+        const spikeX = cx + i * shellW * 0.19;
+        const spikeY = shellTop - (Math.abs(i) === 1 ? 18 : 10);
+        ctx.fillStyle = i % 2 === 0 ? shell.dark : shell.accent;
+        ctx.beginPath();
+        ctx.moveTo(spikeX - 7, shellTop + 6);
+        ctx.quadraticCurveTo(spikeX, spikeY, spikeX + 7, shellTop + 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
       }
-      this.pixelRect(cx - px * 3, crownY, px * 6, px, shell.crown, shell.stroke, 2.2);
-      this.pixelRect(cx - px * 2.5, crownY - px, px, px, shell.crown, shell.stroke, 2.2);
-      this.pixelRect(cx - px * 0.5, crownY - px * 1.6, px, px * 1.6, shell.crown, shell.stroke, 2.2);
-      this.pixelRect(cx + px * 1.5, crownY - px, px, px, shell.crown, shell.stroke, 2.2);
+      this.drawBossCrown(cx, shellTop - 18, shellW * 0.82, opacity, shell.crown, shell.stroke);
     }
+
     ctx.restore();
   }
 
-  private drawCrabBodyFragments(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroyProgress: number) {
+  private drawCrabBodyFragments(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, _isBoss: boolean, opacity: number, destroyProgress: number) {
     const ctx = this.ctx;
-    const px = this.getPixelSize(bodyW, bodyH);
-    const cols = Math.max(isBoss ? 16 : 14, Math.round(bodyW / px));
-    const rows = isBoss
-      ? [Math.max(8, cols - 8), cols - 4, cols - 2, cols, cols, cols - 1, cols - 3, cols - 6]
-      : [Math.max(8, cols - 6), cols - 2, cols, cols, cols - 1, cols - 3, cols - 5];
-    const maxCols = Math.max(...rows);
-    const startX = cx - (maxCols * px) / 2;
-    const startY = cy - rows.length * px * 0.62;
-
+    const fragments = [
+      { dx: -bodyW * 0.22, dy: -bodyH * 0.2, w: bodyW * 0.34, h: bodyH * 0.22, fill: shell.fill2 },
+      { dx: bodyW * 0.2, dy: -bodyH * 0.18, w: bodyW * 0.32, h: bodyH * 0.2, fill: shell.fill },
+      { dx: -bodyW * 0.08, dy: bodyH * 0.02, w: bodyW * 0.44, h: bodyH * 0.24, fill: shell.dark },
+      { dx: 0, dy: -bodyH * 0.32, w: bodyW * 0.2, h: bodyH * 0.14, fill: shell.accent },
+    ];
     ctx.save();
     ctx.globalAlpha = opacity;
-    for (let row = 0; row < rows.length; row++) {
-      const count = rows[row];
-      const offset = (maxCols - count) / 2;
-      for (let col = 0; col < count; col++) {
-        const x = startX + (offset + col) * px;
-        const y = startY + row * px;
-        const dirX = col < count / 2 ? -1 : 1;
-        const driftX = dirX * (destroyProgress * (12 + (col % 4) * 5) + row * 0.8);
-        const driftY = destroyProgress * (12 + row * 4 + (col % 3) * 3);
-        const wobble = Math.sin(this.time * 18 + row * 2 + col) * destroyProgress * 2;
-        const fill = row <= 1 ? shell.fill2 : row >= rows.length - 2 ? shell.dark : shell.fill;
-        this.pixelRect(x + driftX, y + driftY + wobble, px, px, fill, shell.stroke, 2.2);
-      }
-    }
-    for (const side of [-1, 1] as const) {
-      for (let i = 0; i < 3; i++) {
-        const segX = cx + side * (bodyW * 0.18 + i * px * 2 + destroyProgress * 24);
-        const segY = cy + bodyH * 0.12 + i * px * 1.7 + destroyProgress * 20;
-        this.pixelRect(segX, segY, px * 1.4, px, i % 2 === 0 ? shell.legAlt : shell.fill, shell.stroke, 2.2);
-      }
-    }
+    fragments.forEach((fragment, index) => {
+      const side = index % 2 === 0 ? -1 : 1;
+      const driftX = side * (20 + destroyProgress * (26 + index * 7));
+      const driftY = destroyProgress * (18 + index * 10);
+      const wobble = Math.sin(this.time * 15 + index) * 3;
+      ctx.fillStyle = fragment.fill;
+      ctx.strokeStyle = shell.stroke;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.ellipse(
+        cx + fragment.dx + driftX,
+        cy + fragment.dy + driftY + wobble,
+        fragment.w * (0.5 + destroyProgress * 0.08),
+        fragment.h * (0.45 + destroyProgress * 0.08),
+        side * (0.2 + destroyProgress * 0.25),
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      ctx.stroke();
+    });
     ctx.restore();
   }
 
   private drawCrabClaw(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, clawCycle: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
-    const px = this.getPixelSize(bodyW, bodyH);
     const attachX = cx + side * bodyW * 0.29;
-    const attachY = cy + bodyH * 0.2;
-    const openStep = 1 + ((clawCycle + 1) / 2) * (isBoss ? 2.4 : 2);
+    const attachY = cy + bodyH * 0.16;
+    const openAmount = 0.18 + ((clawCycle + 1) / 2) * (isBoss ? 0.38 : 0.3);
     const driftX = destroying ? side * (18 + destroyProgress * 40) : 0;
     const driftY = destroying ? destroyProgress * 28 : 0;
-    const rotation = destroying ? side * destroyProgress * 0.9 : side * (0.12 + clawCycle * 0.04);
-    const armLen = px * (isBoss ? 4.6 : 4);
+    const rotation = destroying ? side * destroyProgress * 0.9 : side * (0.16 + clawCycle * 0.08);
+    const armLength = bodyW * (isBoss ? 0.24 : 0.2);
+    const armThickness = bodyH * (isBoss ? 0.12 : 0.1);
+    const clawLength = bodyW * (isBoss ? 0.28 : 0.22);
+    const clawHeight = bodyH * (isBoss ? 0.28 : 0.22);
 
     ctx.save();
     ctx.translate(attachX + driftX, attachY + driftY);
     ctx.rotate(rotation);
     ctx.globalAlpha = opacity;
-    for (let i = 0; i < 3; i++) {
-      const segX = side > 0 ? i * px * 1.15 : -(i + 1) * px * 1.15;
-      this.pixelRect(segX, i % 2 === 0 ? -px * 0.2 : px * 0.15, px * 1.2, px, i % 2 === 0 ? shell.fill : shell.dark, shell.stroke, 2.2);
-    }
 
-    const jawBaseX = side > 0 ? armLen : -armLen - px * 2.6;
-    const upperY = -px * (1.2 + openStep * 0.55);
-    const lowerY = px * (0.8 + openStep * 0.4);
-    this.pixelRect(jawBaseX, -px * 0.35, px * 2.6, px * 1.3, shell.fill, shell.stroke, 2.2);
-    this.pixelRect(jawBaseX + side * px * 1.3, upperY, px * 3, px * 1.1, shell.fill2, shell.stroke, 2.2);
-    this.pixelRect(jawBaseX + side * px * 2.8, upperY - px, px * 1.4, px, shell.fill2, shell.stroke, 2.2);
-    this.pixelRect(jawBaseX + side * px * 1.3, lowerY, px * 3, px * 1.1, shell.fill2, shell.stroke, 2.2);
-    this.pixelRect(jawBaseX + side * px * 2.8, lowerY + px * 1.1, px * 1.4, px, shell.dark, shell.stroke, 2.2);
-    this.pixelRect(jawBaseX + side * px * 0.8, lowerY + px * 0.4, px * 1.6, px * 0.8, shell.dark, shell.stroke, 2.2);
+    const armGrad = ctx.createLinearGradient(0, -armThickness, side * armLength, armThickness * 1.4);
+    armGrad.addColorStop(0, shell.fill2);
+    armGrad.addColorStop(1, shell.dark);
+    ctx.strokeStyle = armGrad;
+    ctx.lineWidth = armThickness;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(side * armLength * 0.18, -armThickness * 0.2, side * armLength * 0.56, armThickness * 0.3, side * armLength, armThickness * 0.22);
+    ctx.stroke();
+
+    ctx.strokeStyle = shell.stroke;
+    ctx.lineWidth = Math.max(2, armThickness * 0.34);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(side * armLength * 0.18, -armThickness * 0.2, side * armLength * 0.56, armThickness * 0.3, side * armLength, armThickness * 0.22);
+    ctx.stroke();
+
+    const clawBaseX = side * armLength;
+    this.drawCrabPincer(clawBaseX, armThickness * 0.12, side, -openAmount, clawLength, clawHeight, shell, true);
+    this.drawCrabPincer(clawBaseX, armThickness * 0.18, side, openAmount * 0.92, clawLength, clawHeight * 0.94, shell, false);
     ctx.restore();
   }
 
   private drawCrabLeg(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, yOffset: number, spread: number, stride: number, color: string, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
-    const px = this.getPixelSize(bodyW, bodyH);
     const startX = cx + side * bodyW * 0.16;
     const startY = cy + yOffset;
     const driftX = destroying ? side * (8 + destroyProgress * 22 + yOffset * 0.03) : 0;
     const driftY = destroying ? destroyProgress * (18 + yOffset * 0.05) : 0;
-    const step = Math.round(stride / Math.max(1, px * 0.55));
     const points = [
       { x: startX, y: startY },
-      { x: startX + side * (spread * 0.55 + step * px * 0.7) + driftX, y: startY + px * 1.1 + driftY },
-      { x: startX + side * (spread * 1.05 + step * px) + driftX, y: startY + px * 2.5 + driftY },
-      { x: startX + side * (spread * 1.55 + step * px * 1.15) + driftX, y: startY + px * 4.2 + driftY },
+      { x: startX + side * (spread * 0.54 + stride * 0.34) + driftX, y: startY + bodyH * 0.08 + driftY },
+      { x: startX + side * (spread * 0.96 + stride * 0.5) + driftX, y: startY + bodyH * 0.22 + driftY },
+      { x: startX + side * (spread * 1.4 + stride * 0.58) + driftX, y: startY + bodyH * 0.42 + driftY },
     ];
+    const widths = [bodyH * 0.09, bodyH * 0.075, bodyH * 0.058];
 
     ctx.save();
     ctx.globalAlpha = opacity;
     for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[i];
-      const p1 = points[i + 1];
-      const segColor = i % 2 === 0 ? color : this.getCrabPalette(0, false, opacity).legAlt;
-      const width = Math.abs(p1.x - p0.x);
-      const height = Math.abs(p1.y - p0.y);
-      this.pixelRect(
-        Math.min(p0.x, p1.x),
-        Math.min(p0.y, p1.y),
-        Math.max(px * 1.15, width + px * 0.55),
-        Math.max(px, height + px * 0.55),
-        segColor,
+      this.drawRoundedSegment(
+        points[i],
+        points[i + 1],
+        widths[i],
+        i % 2 === 0 ? color : this.getCrabPalette(0, false, opacity).legAlt,
         C_CRAB_OUTLINE,
-        2,
       );
     }
+    ctx.fillStyle = C_CRAB_OUTLINE;
+    ctx.beginPath();
+    ctx.arc(points[1].x, points[1].y, widths[0] * 0.36, 0, Math.PI * 2);
+    ctx.arc(points[2].x, points[2].y, widths[1] * 0.34, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
   private drawCrabEyes(cx: number, cy: number, bodyW: number, bodyH: number, eyeColor: string, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
-    const px = this.getPixelSize(bodyW, bodyH);
+    const isBoss = bodyW > 170;
+    const shell = this.getCrabPalette(0, isBoss, opacity);
     const driftY = destroying ? destroyProgress * 10 : 0;
-    const eyeLook = Math.sin(this.time * 1.8) * px * 0.18;
+    const eyeLookX = Math.sin(this.time * 1.1) * bodyW * 0.01;
+    const eyeLookY = bodyH * 0.03;
+
     for (const side of [-1, 1] as const) {
-      const stalkX = cx + side * bodyW * 0.16;
-      const stalkTopY = cy - bodyH * 0.82 + driftY;
-      const stalkBaseY = cy - bodyH * 0.48 + driftY;
+      const stalkX = cx + side * bodyW * 0.18;
+      const stalkTopY = cy - bodyH * 0.56 + driftY;
+      const stalkBaseY = cy - bodyH * 0.18 + driftY;
+      const eyeRadius = bodyH * 0.12;
       ctx.save();
       ctx.globalAlpha = opacity;
-      this.pixelRect(stalkX - px * 0.45, stalkBaseY, px * 0.9, px * 2.2, eyeColor, C_CRAB_OUTLINE, 2);
-      this.pixelRect(stalkX + side * px * 0.15, stalkTopY, px * 1.5, px * 1.5, eyeColor, C_CRAB_OUTLINE, 2);
-      this.pixelRect(stalkX + side * (px * 0.7 + eyeLook), stalkTopY + px * 0.55, px * 0.45, px * 0.45, `rgba(0,0,0,${opacity})`, C_CRAB_OUTLINE, 1.2);
+      ctx.strokeStyle = shell.stroke;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(stalkX, stalkBaseY);
+      ctx.quadraticCurveTo(stalkX + side * bodyW * 0.02, stalkBaseY - bodyH * 0.1, stalkX, stalkTopY);
+      ctx.stroke();
+
+      ctx.fillStyle = eyeColor;
+      ctx.beginPath();
+      ctx.arc(stalkX, stalkTopY, eyeRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = shell.pupil;
+      ctx.beginPath();
+      ctx.arc(stalkX + eyeLookX, stalkTopY + eyeLookY, eyeRadius * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = shell.brow;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(stalkX - side * eyeRadius * 1.1, stalkTopY - eyeRadius * 1.2);
+      ctx.lineTo(stalkX + side * eyeRadius * 0.55, stalkTopY - eyeRadius * 1.75);
+      ctx.stroke();
       ctx.restore();
     }
+  }
+
+  private drawRoundedSegment(from: { x: number; y: number }, to: { x: number; y: number }, width: number, fill: string, stroke: string) {
+    const ctx = this.ctx;
+    ctx.strokeStyle = fill;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo((from.x + to.x) / 2, from.y + (to.y - from.y) * 0.35, to.x, to.y);
+    ctx.stroke();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = Math.max(1.8, width * 0.26);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.quadraticCurveTo((from.x + to.x) / 2, from.y + (to.y - from.y) * 0.35, to.x, to.y);
+    ctx.stroke();
+  }
+
+  private drawCrabPincer(baseX: number, baseY: number, side: -1 | 1, angle: number, length: number, height: number, shell: ReturnType<Renderer['getCrabPalette']>, upper: boolean) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(baseX, baseY);
+    ctx.rotate(angle);
+
+    const grad = ctx.createLinearGradient(0, -height * 0.4, side * length, height * 0.6);
+    grad.addColorStop(0, upper ? shell.fill2 : shell.fill);
+    grad.addColorStop(1, upper ? shell.dark : shell.accent);
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = shell.stroke;
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    if (upper) {
+      ctx.bezierCurveTo(side * length * 0.22, -height * 0.62, side * length * 0.7, -height * 0.58, side * length, -height * 0.12);
+      ctx.quadraticCurveTo(side * length * 0.6, -height * 0.08, side * length * 0.08, height * 0.06);
+    } else {
+      ctx.bezierCurveTo(side * length * 0.18, height * 0.16, side * length * 0.7, height * 0.72, side * length, height * 0.22);
+      ctx.quadraticCurveTo(side * length * 0.58, height * 0.02, side * length * 0.04, -height * 0.04);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    const toothCount = upper ? 4 : 3;
+    for (let i = 0; i < toothCount; i++) {
+      const t = 0.6 + i * 0.1;
+      const tx = side * length * t;
+      const ty = upper ? -height * 0.14 + i * 1.5 : height * 0.14 - i * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + side * 5, ty + (upper ? -4 : 4));
+      ctx.lineTo(tx + side * 2, ty + (upper ? 3 : -3));
+      ctx.closePath();
+      ctx.fillStyle = shell.fill2;
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  private drawBossCrown(cx: number, y: number, width: number, opacity: number, fill: string, stroke: string) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.moveTo(cx - width * 0.5, y + 12);
+    ctx.lineTo(cx - width * 0.3, y);
+    ctx.lineTo(cx - width * 0.08, y + 11);
+    ctx.lineTo(cx, y - 8);
+    ctx.lineTo(cx + width * 0.08, y + 11);
+    ctx.lineTo(cx + width * 0.3, y);
+    ctx.lineTo(cx + width * 0.5, y + 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private traceSmoothCrabBody(cx: number, cy: number, shellW: number, shellH: number) {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.moveTo(cx - shellW * 0.92, cy - shellH * 0.08);
+    ctx.bezierCurveTo(
+      cx - shellW * 0.84, cy - shellH * 0.92,
+      cx - shellW * 0.28, cy - shellH * 1.12,
+      cx, cy - shellH * 1.04,
+    );
+    ctx.bezierCurveTo(
+      cx + shellW * 0.28, cy - shellH * 1.12,
+      cx + shellW * 0.84, cy - shellH * 0.92,
+      cx + shellW * 0.92, cy - shellH * 0.08,
+    );
+    ctx.bezierCurveTo(
+      cx + shellW * 0.88, cy + shellH * 0.5,
+      cx + shellW * 0.36, cy + shellH * 0.84,
+      cx, cy + shellH * 0.76,
+    );
+    ctx.bezierCurveTo(
+      cx - shellW * 0.36, cy + shellH * 0.84,
+      cx - shellW * 0.88, cy + shellH * 0.5,
+      cx - shellW * 0.92, cy - shellH * 0.08,
+    );
+    ctx.closePath();
   }
 
   private traceCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, isBoss: boolean) {

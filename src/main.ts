@@ -8,6 +8,7 @@ const overlay = document.getElementById('overlay')!;
 const startBtn = document.getElementById('start-btn')!;
 const scoreVal = document.getElementById('score-val')!;
 const waveVal = document.getElementById('wave-val')!;
+const phaseVal = document.getElementById('phase-val')!;
 const livesDisplay = document.getElementById('lives-display')!;
 const typedText = document.getElementById('typed-text')!;
 const inputDisplay = document.getElementById('input-display')!;
@@ -245,6 +246,11 @@ trackVisit();
 // ─── Game state ───
 let game = new Game(canvas, updateUI, difficulty);
 
+function getPhaseLabel(wave: number): string {
+  const key = game.rendererRef.getDayPhase(wave).key;
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 function syncPauseButton() {
   pauseBtn.textContent = game.isPaused ? '▶' : '⏸';
   pauseBtn.setAttribute('aria-label', game.isPaused ? 'Resume game' : 'Pause game');
@@ -252,7 +258,7 @@ function syncPauseButton() {
 
 function showMenu() {
   overlayTitle.textContent = 'TYPO SIEGE';
-  overlaySubtitle.textContent = 'Type words. Charge towers. Defend the page.';
+  overlaySubtitle.textContent = 'Type fast. Hold the shoreline. Break the crab rush.';
   overlayStats.style.display = 'none';
   newHighscoreBadge.style.display = 'none';
   exitBtn.style.display = 'none';
@@ -287,7 +293,7 @@ function showGameOver() {
   const wpm = game.charsTyped > 0 ? Math.round(game.charsTyped / 5) : 0;
   overlayStats.innerHTML = `
     <span class="big">${game.currentScore}</span>
-    Wave ${game.currentWave} · Best Combo ×${game.bestCombo} · ~${wpm} WPM
+    Wave ${game.currentWave} · ${getPhaseLabel(game.currentWave)} · Best Combo ×${game.bestCombo} · ~${wpm} WPM
   `;
   newHighscoreBadge.style.display = game.isNewHigh ? 'block' : 'none';
   menuHighscore.textContent = `Best: ${stats.bestScore}`;
@@ -304,6 +310,7 @@ function showGameOver() {
 function updateUI() {
   scoreVal.textContent = String(game.currentScore);
   waveVal.textContent = String(game.currentWave);
+  phaseVal.textContent = getPhaseLabel(game.currentWave);
 
   // Lives as hearts
   livesDisplay.textContent = '❤️'.repeat(Math.max(0, game.currentLives)) + '🖤'.repeat(Math.max(0, 3 - game.currentLives));
@@ -328,7 +335,7 @@ function updateUI() {
     if (!stackBadge) {
       stackBadge = document.createElement('div');
       stackBadge.className = 'stack-count';
-      stackBadge.style.cssText = 'position:absolute;top:2px;right:4px;font-size:11px;font-weight:800;color:#67e8f9;text-shadow:0 0 6px rgba(103,232,249,0.6);pointer-events:none;';
+      stackBadge.style.cssText = 'position:absolute;top:3px;right:5px;font-size:11px;font-weight:800;color:#176f8d;text-shadow:0 0 6px rgba(255,245,226,0.9);pointer-events:none;';
       el.appendChild(stackBadge);
     }
     stackBadge.textContent = pu.stacks > 0 ? `×${pu.stacks}` : '';
@@ -508,7 +515,7 @@ document.getElementById('pu-chain')!.addEventListener('click', () => {
 function flashPowerUp(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.style.outline = '2px solid rgba(239,68,68,0.6)';
+  el.style.outline = '2px solid rgba(239,142,99,0.8)';
   setTimeout(() => { el.style.outline = ''; }, 300);
 }
 

@@ -139,7 +139,9 @@ export class Game {
     return true;
   }
 
-  private destroyWord(word: FallingWord, silent = false, effect: DestroyEffect = 'normal') {
+  private destroyWord(word: FallingWord, silent = false, effect: DestroyEffect = 'normal', waveProgress = this.getWaveProgressValue(word)) {
+    if (word.destroying) return;
+
     word.destroying = true;
     word.destroyTimer = 0.4;
 
@@ -172,12 +174,22 @@ export class Game {
       }
     }
 
-    this.wordsDestroyedInWave++;
+    this.applyWaveProgress(waveProgress);
+
+    this.emitState();
+  }
+
+  private getWaveProgressValue(word: FallingWord): number {
+    const isBoss = word.entry.difficulty >= 5;
+    return isBoss ? 2 : 1;
+  }
+
+  private applyWaveProgress(amount: number) {
+    if (amount <= 0) return;
+    this.wordsDestroyedInWave += amount;
     if (this.wordsDestroyedInWave >= this.wordsPerWave) {
       this.nextWave();
     }
-
-    this.emitState();
   }
 
   private spawnEffectForWord(word: FallingWord, effect: DestroyEffect) {
@@ -228,10 +240,16 @@ export class Game {
 
     switch (type) {
       case 'fire': {
-        const snapshot = [...this.words];
+        const snapshot = this.words.filter(w => !w.destroying);
+        const fireTargets = snapshot.filter(w => w.entry.difficulty < 5);
+
+        let waveProgress = 0;
         for (const w of snapshot) {
-          if (!w.destroying) this.destroyWord(w, true, 'fire');
+          if (w.entry.difficulty >= 5) continue;
+          waveProgress += this.getWaveProgressValue(w);
+          this.destroyWord(w, true, 'fire', 0);
         }
+        if (fireTargets.length > 0) this.applyWaveProgress(waveProgress);
         this.renderer.showScreenFlash('rgba(239,68,68,0.4)');
         break;
       }
