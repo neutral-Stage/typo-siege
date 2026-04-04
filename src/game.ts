@@ -385,6 +385,8 @@ export class Game {
         word.destroying = true;
         word.destroyTimer = 0;
         word.opacity = 0;
+        // Count missed words toward wave progress so wave can still advance
+        this.wordsDestroyedInWave++;
         this.loseLife();
       }
     }

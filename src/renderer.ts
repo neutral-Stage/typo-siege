@@ -888,7 +888,7 @@ export class Renderer {
       ? Math.min(1, Math.max(0, 1 - Math.max(word.destroyTimer, 0) / 0.4))
       : 0;
     const textPadX = Math.max(18, fs * 0.7);
-    const bodyW = Math.max(word.width + textPadX * 2.1, fs * 4.6) * (isBoss ? 1.5 : 1.05);
+    const bodyW = Math.max(word.width + textPadX * 2.4, fs * 5.2) * (isBoss ? 1.5 : 1.15);
     const bodyH = Math.max(word.height * 1.45, fs * 2.55) * (isBoss ? 1.5 : 1.08);
     const cx = word.x + word.width / 2 + sway;
     const cy = word.y + word.height / 2 + bob + (isBoss ? 2 : 0);
@@ -1159,10 +1159,10 @@ export class Renderer {
     const driftX = destroying ? side * (18 + destroyProgress * 40) : 0;
     const driftY = destroying ? destroyProgress * 28 : 0;
     const rotation = destroying ? side * destroyProgress * 0.9 : side * (0.16 + clawCycle * 0.08);
-    const armLength = bodyW * (isBoss ? 0.24 : 0.2);
-    const armThickness = bodyH * (isBoss ? 0.12 : 0.1);
-    const clawLength = bodyW * (isBoss ? 0.28 : 0.22);
-    const clawHeight = bodyH * (isBoss ? 0.28 : 0.22);
+    const armLength = bodyW * (isBoss ? 0.32 : 0.28);
+    const armThickness = bodyH * (isBoss ? 0.16 : 0.14);
+    const clawLength = bodyW * (isBoss ? 0.42 : 0.36);
+    const clawHeight = bodyH * (isBoss ? 0.42 : 0.36);
 
     ctx.save();
     ctx.translate(attachX + driftX, attachY + driftY);
