@@ -31,6 +31,7 @@ const achIcon = document.getElementById('ach-icon')!;
 const achTitle = document.getElementById('ach-title')!;
 const achDesc = document.getElementById('ach-desc')!;
 const tapHint = document.getElementById('tap-hint')!;
+const exitBtn = document.getElementById('exit-btn')!;
 
 // Power-up UI
 const puElements: Record<string, HTMLElement> = {
@@ -180,8 +181,19 @@ function randomFrom<T>(arr: T[]): T {
 // Track last combo to detect new thresholds
 let lastCombo = 0;
 let bossTauntShown = false;
+let statsRecorded = false; // Prevent double-recording game stats
 
 // ─── Analytics (counterapi.dev — free, no signup) ───
+// ─── Number formatting (100K → 100K, 1M → 1M, etc.) ───
+function formatCount(n: number): string {
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 100_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
+
+let countsFetched = false; // Prevent duplicate fetches
+
 async function fetchCounterCount(
   key: 'visits' | 'games',
   target: HTMLElement | null,
@@ -193,15 +205,17 @@ async function fetchCounterCount(
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (typeof data?.count !== 'number') throw new Error('Missing count');
-    target.textContent = String(data.count);
+    target.textContent = formatCount(data.count);
     return;
   } catch (e) {
     console.warn(`counter fetch failed for ${key}`, e);
   }
-  target.textContent = typeof fallback === 'number' ? String(fallback) : '—';
+  target.textContent = typeof fallback === 'number' ? formatCount(fallback) : '—';
 }
 
 async function trackVisit() {
+  if (countsFetched) return; // Only once per page load
+  countsFetched = true;
   try {
     await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/up/');
   } catch { /* silent */ }
@@ -222,7 +236,7 @@ async function fetchCounts() {
   ]);
 }
 
-// Track visit on page load
+// Track visit on page load (once)
 trackVisit();
 
 // ─── Game state ───
@@ -233,20 +247,22 @@ function showMenu() {
   overlaySubtitle.textContent = 'Type words. Charge towers. Defend the page.';
   overlayStats.style.display = 'none';
   newHighscoreBadge.style.display = 'none';
+  exitBtn.style.display = 'none';
   startBtn.textContent = 'Start Game';
 
   const hs = game.savedHighScore;
   menuHighscore.textContent = hs > 0 ? `Best: ${hs}` : '';
 
   // Update stats pills
-  statBest.textContent = String(stats.bestScore);
-  statStreak.textContent = String(stats.currentStreak);
-  statWords.textContent = String(stats.totalWordsDestroyed);
+  statBest.textContent = formatCount(stats.bestScore);
+  statStreak.textContent = formatCount(stats.currentStreak);
+  statWords.textContent = formatCount(stats.totalWordsDestroyed);
 
   builtBy.style.display = '';
 }
 
 function showGameOver() {
+  exitBtn.style.display = 'none';
   overlayTitle.textContent = 'GAME OVER';
   overlaySubtitle.textContent = '';
   overlayStats.style.display = 'block';
@@ -262,9 +278,9 @@ function showGameOver() {
   startBtn.textContent = 'Play Again';
 
   // Update stats pills
-  statBest.textContent = String(stats.bestScore);
-  statStreak.textContent = String(stats.currentStreak);
-  statWords.textContent = String(stats.totalWordsDestroyed);
+  statBest.textContent = formatCount(stats.bestScore);
+  statStreak.textContent = formatCount(stats.currentStreak);
+  statWords.textContent = formatCount(stats.totalWordsDestroyed);
 
   builtBy.style.display = '';
 }
@@ -322,8 +338,9 @@ function updateUI() {
     bossTauntShown = false;
   }
 
-  // Game over — update stats
-  if (game.isGameOver) {
+  // Game over — update stats (once only)
+  if (game.isGameOver && !statsRecorded) {
+    statsRecorded = true;
     // Update all-time stats
     stats.totalGames++;
     stats.totalWordsDestroyed += game.wordsDestroyed;
@@ -357,9 +374,11 @@ function startGame() {
   game = new Game(canvas, updateUI, difficulty);
   game.start();
   overlay.classList.add('hidden');
+  exitBtn.style.display = '';
   builtBy.style.display = 'none';
   lastCombo = 0;
   bossTauntShown = false;
+  statsRecorded = false;
   updateUI();
   focusMobileInput();
   setTimeout(showTapHint, 500);
@@ -369,6 +388,23 @@ startBtn.addEventListener('click', startGame);
 startBtn.addEventListener('touchend', (e) => {
   e.preventDefault(); // Prevent ghost click
   startGame();
+});
+
+// Exit button — return to menu during gameplay
+exitBtn.addEventListener('click', () => {
+  if (game.isPlaying) {
+    game.stop();
+    overlay.classList.remove('hidden');
+    showMenu();
+  }
+});
+exitBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (game.isPlaying) {
+    game.stop();
+    overlay.classList.remove('hidden');
+    showMenu();
+  }
 });
 
 // Power-up click handlers

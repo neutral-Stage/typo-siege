@@ -57,6 +57,10 @@ export class Game {
     this.diffConfig = DIFFICULTY_MULT[difficulty];
   }
 
+  stop() {
+    this.phase = 'gameover';
+  }
+
   start() {
     this.phase = 'playing';
     this.words = [];

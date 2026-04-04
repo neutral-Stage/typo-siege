@@ -325,6 +325,29 @@
     #start-btn:active {
       transform: scale(0.98);
     }
+    #exit-btn {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 50;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    #exit-btn:hover {
+      background: rgba(239,68,68,0.15);
+      border-color: rgba(239,68,68,0.3);
+      color: #fca5a5;
+    }
+    #exit-btn:active { transform: scale(0.95); }
     #new-highscore-badge {
       background: linear-gradient(135deg, #6366f1, #a5b4fc);
       color: white;
@@ -678,6 +701,8 @@
       <div id="menu-highscore"></div>
       <button id="start-btn">Start Game</button>
     </div>
+
+    <button id="exit-btn" style="display:none">🚪 Exit</button>
 
     <div id="achievement-toast">
       <div class="ach-icon" id="ach-icon"></div>
