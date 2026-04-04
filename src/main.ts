@@ -358,6 +358,14 @@ function updateUI() {
 
 // ─── Input handling ───
 document.addEventListener('keydown', (e) => {
+  // Escape to exit during gameplay
+  if (e.key === 'Escape' && game.isPlaying) {
+    game.stop();
+    overlay.classList.remove('hidden');
+    showMenu();
+    return;
+  }
+
   if (!game.isPlaying) return;
 
   if (e.key.length === 1 || ['1', '2', '3', '4'].includes(e.key)) {

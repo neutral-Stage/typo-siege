@@ -469,19 +469,36 @@ export class Renderer {
     const w = word.width, h = word.height;
     const cx = word.x + w / 2, cy = word.y + h / 2;
 
-    // ─── Falling streak trail ───
+    // ─── Falling streak trail (hexagonal, matching body) ───
     if (!word.destroying && speed > 25) {
       const streakCount = Math.min(4, Math.ceil(speed / 35));
       for (let s = 1; s <= streakCount; s++) {
         const streakAlpha = (0.1 - s * 0.02) * (1 + danger * 2);
         const streakY = word.y - speed * 0.025 * s;
+        const sx = word.x + s * 0.8, sw = w - s * 1.6, sh = h;
+        const scy = streakY + sh / 2;
         ctx.fillStyle = isBoss
           ? `rgba(239,68,68,${streakAlpha})`
           : danger > 0.5
             ? `rgba(239,68,68,${streakAlpha * 0.7})`
             : `rgba(99,102,241,${streakAlpha})`;
         ctx.beginPath();
-        ctx.roundRect(word.x + s * 0.8, streakY, w - s * 1.6, h, 3);
+        if (isBoss) {
+          // Boss diamond streak
+          ctx.moveTo(sx + sw / 2, streakY);
+          ctx.lineTo(sx + sw, scy);
+          ctx.lineTo(sx + sw / 2, streakY + sh);
+          ctx.lineTo(sx, scy);
+        } else {
+          // Hexagonal streak matching body
+          ctx.moveTo(sx + sw * 0.25, streakY);
+          ctx.lineTo(sx + sw * 0.75, streakY);
+          ctx.lineTo(sx + sw, scy);
+          ctx.lineTo(sx + sw * 0.75, streakY + sh);
+          ctx.lineTo(sx + sw * 0.25, streakY + sh);
+          ctx.lineTo(sx, scy);
+        }
+        ctx.closePath();
         ctx.fill();
       }
     }
@@ -545,7 +562,13 @@ export class Renderer {
     } else {
       ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.06})`;
       ctx.beginPath();
-      ctx.roundRect(word.x, word.y, w, h, 4);
+      ctx.moveTo(word.x + w * 0.25, word.y);
+      ctx.lineTo(word.x + w * 0.75, word.y);
+      ctx.lineTo(word.x + w, cy);
+      ctx.lineTo(word.x + w * 0.75, word.y + h);
+      ctx.lineTo(word.x + w * 0.25, word.y + h);
+      ctx.lineTo(word.x, cy);
+      ctx.closePath();
       ctx.fill();
     }
 
