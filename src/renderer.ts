@@ -445,93 +445,132 @@ export class Renderer {
     }
   }
 
+
   drawWord(word: FallingWord, isTarget: boolean) {
     const ctx = this.ctx;
     const text = word.entry.text;
     const typed = word.typed;
     const isBoss = word.entry.difficulty >= 5;
     const fs = getFontSize(this.width);
+    const W = this.width, H = this.height;
     const speed = word.speed;
-    // Subtle vibration based on speed — feels aggressive
-    const vibX = (Math.sin(this.time * 12 + word.id * 3) * Math.min(speed * 0.006, 1.2));
-    const vibY = (Math.cos(this.time * 10 + word.id * 2) * Math.min(speed * 0.004, 0.8));
+
+    // How close to the danger zone (0=top, 1=bottom)
+    const danger = Math.min(1, Math.max(0, word.y / (H - 80)));
+
+    // Aggressive vibration — stronger for bosses and near-bottom words
+    const vibAmp = (0.3 + danger * 1.8 + (isBoss ? 1.5 : 0)) * (speed / 55);
+    const vibX = Math.sin(this.time * 16 + word.id * 3) * vibAmp;
+    const vibY = Math.cos(this.time * 13 + word.id * 2) * vibAmp * 0.6;
 
     ctx.save();
     ctx.translate(vibX, vibY);
 
-    // ─── Falling motion trail ───
-    if (!word.destroying && speed > 40) {
-      const trailAlpha = Math.min(speed / 400, 0.15);
-      ctx.fillStyle = isBoss ? `rgba(239,68,68,${trailAlpha})` : `rgba(99,102,241,${trailAlpha})`;
-      ctx.beginPath();
-      ctx.roundRect(word.x, word.y - speed * 0.04, word.width, word.height, isBoss ? 14 : 10);
-      ctx.fill();
-    }
-
-    // ─── Target tracking glow ───
-    if (isTarget && typed > 0) {
-      ctx.shadowColor = isBoss ? 'rgba(239,68,68,0.5)' : 'rgba(99,102,241,0.4)';
-      ctx.shadowBlur = 20;
-    }
-
-    // ─── Word body — sharp angular shape ───
-    let bgColor: string;
-    if (word.destroying) {
-      bgColor = `rgba(99,102,241,${word.opacity * 0.1})`;
-    } else if (isBoss) {
-      bgColor = `rgba(239,68,68,${0.12 + Math.sin(this.time * 3) * 0.04})`;
-    } else if (isTarget) {
-      bgColor = 'rgba(99,102,241,0.1)';
-    } else {
-      bgColor = 'rgba(255,255,255,0.04)';
-    }
-
-    // Angular shape instead of pill
-    const r = isBoss ? 4 : 3;
     const w = word.width, h = word.height;
     const cx = word.x + w / 2, cy = word.y + h / 2;
 
-    ctx.fillStyle = bgColor;
-    if (isBoss) {
-      // Diamond-ish shape for bosses
-      ctx.beginPath();
-      ctx.moveTo(cx, word.y - 2);
-      ctx.lineTo(word.x + w + 4, cy);
-      ctx.lineTo(cx, word.y + h + 2);
-      ctx.lineTo(word.x - 4, cy);
-      ctx.closePath();
-      ctx.fill();
+    // ─── Falling streak trail ───
+    if (!word.destroying && speed > 25) {
+      const streakCount = Math.min(4, Math.ceil(speed / 35));
+      for (let s = 1; s <= streakCount; s++) {
+        const streakAlpha = (0.1 - s * 0.02) * (1 + danger * 2);
+        const streakY = word.y - speed * 0.025 * s;
+        ctx.fillStyle = isBoss
+          ? `rgba(239,68,68,${streakAlpha})`
+          : danger > 0.5
+            ? `rgba(239,68,68,${streakAlpha * 0.7})`
+            : `rgba(99,102,241,${streakAlpha})`;
+        ctx.beginPath();
+        ctx.roundRect(word.x + s * 0.8, streakY, w - s * 1.6, h, 3);
+        ctx.fill();
+      }
+    }
+
+    // ─── Threat aura — pulses more urgently near bottom ───
+    if (!word.destroying) {
+      const auraFreq = 3 + danger * 8;
+      const auraPulse = 0.4 + Math.sin(this.time * auraFreq) * 0.35;
+      const auraSize = 8 + danger * 20 + (isBoss ? 14 : 0);
+      ctx.shadowColor = isBoss
+        ? `rgba(239,68,68,${auraPulse * 0.35})`
+        : danger > 0.5
+          ? `rgba(239,68,68,${auraPulse * 0.25})`
+          : `rgba(99,102,241,${auraPulse * 0.12})`;
+      ctx.shadowBlur = auraSize;
+    }
+
+    // ─── Body — dark menacing shape that gets redder near danger ───
+    if (!word.destroying) {
+      const redShift = danger;
+      const bodyR = Math.floor(25 + redShift * 100 + (isBoss ? 140 : 0));
+      const bodyG = Math.floor(15 + (isBoss ? 10 : 0));
+      const bodyB = Math.floor(35 - redShift * 15 + (isBoss ? 15 : 0));
+      const bodyA = 0.18 + danger * 0.12 + (isBoss ? 0.12 : 0);
+      ctx.fillStyle = `rgba(${bodyR},${bodyG},${bodyB},${bodyA})`;
+
+      if (isBoss) {
+        // Boss: jagged star-diamond
+        const spike = 7 + Math.sin(this.time * 6) * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(cx, word.y - spike);
+        ctx.lineTo(word.x + w * 0.75, word.y + 1);
+        ctx.lineTo(word.x + w + spike * 0.6, cy - 2);
+        ctx.lineTo(word.x + w * 0.75, cy - 1);
+        ctx.lineTo(cx + 4, cy);
+        ctx.lineTo(word.x + w * 0.75, cy + 1);
+        ctx.lineTo(word.x + w + spike * 0.6, cy + 2);
+        ctx.lineTo(word.x + w * 0.75, word.y + h - 1);
+        ctx.lineTo(cx, word.y + h + spike);
+        ctx.lineTo(word.x + w * 0.25, word.y + h - 1);
+        ctx.lineTo(word.x - spike * 0.6, cy + 2);
+        ctx.lineTo(word.x + w * 0.25, cy + 1);
+        ctx.lineTo(cx - 4, cy);
+        ctx.lineTo(word.x + w * 0.25, cy - 1);
+        ctx.lineTo(word.x - spike * 0.6, cy - 2);
+        ctx.lineTo(word.x + w * 0.25, word.y + 1);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Normal: aggressive pointed hexagon
+        ctx.beginPath();
+        ctx.moveTo(word.x + w * 0.25, word.y - 3);
+        ctx.lineTo(word.x + w * 0.75, word.y - 3);
+        ctx.lineTo(word.x + w + 4, cy);
+        ctx.lineTo(word.x + w * 0.75, word.y + h + 3);
+        ctx.lineTo(word.x + w * 0.25, word.y + h + 3);
+        ctx.lineTo(word.x - 4, cy);
+        ctx.closePath();
+        ctx.fill();
+      }
     } else {
-      // Sharp rect for normal words
+      ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.06})`;
       ctx.beginPath();
-      ctx.moveTo(word.x + r, word.y);
-      ctx.lineTo(word.x + w - r, word.y);
-      ctx.lineTo(word.x + w + 2, cy);
-      ctx.lineTo(word.x + w - r, word.y + h);
-      ctx.lineTo(word.x + r, word.y + h);
-      ctx.lineTo(word.x - 2, cy);
-      ctx.closePath();
+      ctx.roundRect(word.x, word.y, w, h, 4);
       ctx.fill();
     }
 
-    // Border
+    // ─── Border — shifts indigo→crimson as word descends ───
     if (!word.destroying) {
+      const bAlpha = 0.12 + danger * 0.35;
+      const bWidth = 1 + danger * 2;
+
       if (isTarget && typed > 0) {
-        ctx.strokeStyle = isBoss
-          ? `rgba(239,68,68,${0.5 + Math.sin(this.time * 6) * 0.2})`
-          : `rgba(99,102,241,${0.4 + Math.sin(this.time * 6) * 0.15})`;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.lineDashOffset = -this.time * 30;
+        ctx.strokeStyle = `rgba(103,232,249,${0.6 + Math.sin(this.time * 10) * 0.2})`;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([5, 3]);
+        ctx.lineDashOffset = -this.time * 50;
         ctx.stroke();
         ctx.setLineDash([]);
       } else if (isBoss) {
-        ctx.strokeStyle = `rgba(239,68,68,${0.3 + Math.sin(this.time * 4) * 0.1})`;
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = `rgba(239,68,68,${0.4 + Math.sin(this.time * 5) * 0.15})`;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
       } else {
-        ctx.strokeStyle = `rgba(99,102,241,${0.08 + Math.sin(this.time * 2 + word.id) * 0.03})`;
-        ctx.lineWidth = 1;
+        const bR = Math.floor(99 + danger * 140);
+        const bG = Math.floor(102 - danger * 70);
+        const bB = Math.floor(241 - danger * 120);
+        ctx.strokeStyle = `rgba(${bR},${bG},${bB},${bAlpha})`;
+        ctx.lineWidth = bWidth;
         ctx.stroke();
       }
     }
@@ -539,35 +578,45 @@ export class Renderer {
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // ─── Boss crown ───
+    // ─── Dripping drops — words bleed downward near danger zone ───
+    if (!word.destroying && danger > 0.15) {
+      const dripCount = Math.ceil(danger * 5);
+      for (let d = 0; d < dripCount; d++) {
+        const dx = word.x + PADDING_X + ((word.id * 7 + d * 41) % Math.max(1, Math.floor(w - PADDING_X * 2)));
+        const dripPhase = (this.time * 2.5 + d * 0.7 + word.id * 0.4) % 1;
+        const dripY = word.y + h + dripPhase * 25;
+        const dripA = (1 - dripPhase) * 0.35 * danger;
+        const dripColor = isBoss || danger > 0.5
+          ? `rgba(239,68,68,${dripA})`
+          : `rgba(99,102,241,${dripA})`;
+        ctx.fillStyle = dripColor;
+        ctx.beginPath();
+        // Teardrop shape
+        ctx.ellipse(dx, dripY, 1.5 - dripPhase * 0.5, 2 + (1 - dripPhase), 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ─── Boss crown + fire particles ───
     if (isBoss && !word.destroying) {
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
-      const crownBob = Math.sin(this.time * 3) * 2;
-      ctx.fillText('👑', cx, word.y - 8 + crownBob);
+      ctx.fillText('👑', cx, word.y - 10 + Math.sin(this.time * 3.5) * 2);
       ctx.textAlign = 'start';
-    }
 
-    // ─── Glow aura around untyped words ───
-    if (!word.destroying && !isTarget && !isBoss) {
-      const auraAlpha = 0.03 + Math.sin(this.time * 1.5 + word.id) * 0.02;
-      ctx.shadowColor = `rgba(99,102,241,${auraAlpha * 3})`;
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = 'transparent';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.shadowColor = 'transparent';
-    }
-
-    // ─── Boss fire aura ───
-    if (isBoss && !word.destroying) {
-      const auraAlpha = 0.06 + Math.sin(this.time * 2) * 0.03;
-      ctx.shadowColor = `rgba(239,68,68,${auraAlpha * 2})`;
-      ctx.shadowBlur = 16;
-      ctx.fillStyle = 'transparent';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.shadowColor = 'transparent';
+      // Ambient fire particles
+      if (Math.random() < 0.35) {
+        this.particles.push({
+          x: cx + (Math.random() - 0.5) * w,
+          y: word.y + Math.random() * h,
+          vx: (Math.random() - 0.5) * 20,
+          vy: -Math.random() * 50 - 10,
+          char: '•', opacity: 0.7, font: '6px Inter', size: 3,
+          rotation: 0, vr: 0,
+          color: ['#ef4444','#f97316','#fbbf24'][Math.floor(Math.random()*3)],
+          effect: 'normal', life: 0.5, maxLife: 0.5, scale: 1, glowSize: 5,
+        });
+      }
     }
 
     // ─── Draw characters ───
@@ -577,32 +626,42 @@ export class Renderer {
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       if (i < typed) {
+        // Typed chars glow cyan
         ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width, 600);
-        ctx.fillStyle = isBoss ? `rgba(252,165,165,${word.opacity})` : `rgba(99,102,241,${word.opacity})`;
-        ctx.shadowColor = isBoss ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
-        ctx.shadowBlur = 4;
+        ctx.fillStyle = `rgba(103,232,249,${word.opacity})`;
+        ctx.shadowColor = 'rgba(103,232,249,0.5)';
+        ctx.shadowBlur = 8;
       } else if (word.destroying) {
         ctx.font = getFont(this.width);
-        ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.4})`;
+        ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.25})`;
         ctx.shadowBlur = 0;
       } else {
         ctx.font = getFont(this.width);
-        ctx.fillStyle = isBoss
-          ? `rgba(252,165,165,${word.opacity * 0.8})`
-          : `rgba(255,255,255,${word.opacity * (isTarget ? 0.85 : 0.5)})`;
-        ctx.shadowBlur = 0;
+        // Untyped chars — threatening shift from pale → red
+        if (isBoss) {
+          ctx.fillStyle = `rgba(252,165,165,${0.7 + danger * 0.25})`;
+          ctx.shadowColor = 'rgba(239,68,68,0.25)';
+          ctx.shadowBlur = 3;
+        } else if (danger > 0.7) {
+          ctx.fillStyle = `rgba(252,140,140,${0.6 + danger * 0.3})`;
+        } else if (danger > 0.4) {
+          ctx.fillStyle = `rgba(255,180,130,${0.5 + danger * 0.2})`;
+        } else {
+          ctx.fillStyle = `rgba(190,200,255,${0.45})`;
+        }
       }
       ctx.fillText(char, textX, textY + fs);
       ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
       textX += ctx.measureText(char).width + 0.5;
     }
 
-    // Typed underline
+    // ─── Typed slash underline ───
     if (typed > 0 && !word.destroying) {
-      ctx.strokeStyle = isBoss ? `rgba(239,68,68,${word.opacity * 0.5})` : `rgba(99,102,241,${word.opacity * 0.5})`;
-      ctx.lineWidth = 2;
-      ctx.shadowColor = isBoss ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
-      ctx.shadowBlur = 6;
+      ctx.strokeStyle = `rgba(103,232,249,${word.opacity * 0.7})`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(103,232,249,0.6)';
+      ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.moveTo(word.x + PADDING_X, textY + fs + 4);
       let ulW = 0;
@@ -611,6 +670,7 @@ export class Renderer {
       ctx.lineTo(word.x + PADDING_X + ulW, textY + fs + 4);
       ctx.stroke();
       ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
     }
 
     ctx.restore();
