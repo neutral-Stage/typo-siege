@@ -51,6 +51,7 @@ export class Game {
 
   constructor(private canvas: HTMLCanvasElement, onStateChange?: () => void, difficulty: Difficulty = 'normal') {
     this.renderer = new Renderer(canvas);
+    this.renderer.wave = this.wave;
     this.powerUps = createPowerUps();
     this.onStateChange = onStateChange;
     this.difficulty = difficulty;
@@ -69,6 +70,7 @@ export class Game {
     this.score = 0;
     this.lives = this.diffConfig.lives;
     this.wave = 1;
+    this.renderer.wave = this.wave;
     this.combo = 0;
     this.maxCombo = 0;
     this.wordsDestroyedInWave = 0;
@@ -202,6 +204,7 @@ export class Game {
 
   private nextWave() {
     this.wave++;
+    this.renderer.wave = this.wave;
     this.wordsDestroyedInWave = 0;
     this.wordsPerWave = Math.min(35, 18 + this.wave * 3);
     this.totalWordsSpawned = 0;

@@ -45,9 +45,33 @@ interface LaserState {
   opacity: number; typed: number; total: number;
 }
 
+interface DayPhaseConfig {
+  key: 'morning' | 'afternoon' | 'evening' | 'night' | 'midnight';
+  skyColors: [string, string, string, string];
+  oceanColors: [string, string, string];
+  waveLayerColors: [string, string, string, string];
+  sandColors: [string, string];
+  celestial: {
+    kind: 'sun' | 'moon';
+    x: number;
+    y: number;
+    radius: number;
+    glow: string;
+    body: string;
+    accent?: string;
+  };
+  horizonGlow: string;
+  cloudColor: string;
+  foam: string;
+  shoreline: string;
+  starDensity: number;
+}
+
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private offscreenCanvas: HTMLCanvasElement;
+  private offscreenCtx: CanvasRenderingContext2D;
   private dpr: number;
   private particles: Particle[] = [];
   private rings: RingEffect[] = [];
@@ -62,10 +86,15 @@ export class Renderer {
   private shakeIntensity = 0;
   private shakeDuration = 0;
   private shakeTimer = 0;
+  private bgDirty = true;
+  private cachedPhaseKey: DayPhaseConfig['key'] | null = null;
+  public wave = 1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
+    this.offscreenCanvas = document.createElement('canvas');
+    this.offscreenCtx = this.offscreenCanvas.getContext('2d')!;
     this.dpr = window.devicePixelRatio || 1;
     this.resize();
   }
@@ -74,7 +103,11 @@ export class Renderer {
     const rect = this.canvas.parentElement!.getBoundingClientRect();
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
-    this.ctx.scale(this.dpr, this.dpr);
+    this.offscreenCanvas.width = this.canvas.width;
+    this.offscreenCanvas.height = this.canvas.height;
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.offscreenCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.bgDirty = true;
   }
 
   get width(): number { return this.canvas.width / this.dpr; }
@@ -255,9 +288,24 @@ export class Renderer {
     const W = this.width, H = this.height;
     const horizonY = H * 0.6;
     const sandY = H * 0.85;
+    const phase = this.getDayPhase(this.wave);
 
     ctx.clearRect(0, 0, W, H);
-    this.drawBeachBackground(W, H, horizonY, sandY);
+    if (this.cachedPhaseKey !== phase.key) {
+      this.bgDirty = true;
+      this.cachedPhaseKey = phase.key;
+    }
+    if (this.bgDirty) {
+      this.renderStaticBackground();
+      this.bgDirty = false;
+    }
+
+    ctx.drawImage(this.offscreenCanvas, 0, 0, this.offscreenCanvas.width, this.offscreenCanvas.height, 0, 0, W, H);
+    this.drawDynamicOcean(W, H, horizonY, sandY, phase);
+    this.drawShorelineWaves(W, H, horizonY, sandY, phase);
+    if (phase.celestial.kind === 'moon') {
+      this.drawTwinklingStars(W, horizonY, phase);
+    }
 
     // ─── Tower defense base ───
     this.drawTowers(W, H, sandY);
@@ -285,44 +333,100 @@ export class Renderer {
     }
   }
 
-  private drawBeachBackground(W: number, H: number, horizonY: number, sandY: number) {
-    const ctx = this.ctx;
+  private renderStaticBackground() {
+    const ctx = this.offscreenCtx;
+    const W = this.width;
+    const H = this.height;
+    const horizonY = H * 0.6;
+    const sandY = H * 0.85;
+    const phase = this.getDayPhase(this.wave);
 
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, W, H);
 
     const sky = ctx.createLinearGradient(0, 0, 0, horizonY);
-    sky.addColorStop(0, C_SKY_TOP);
-    sky.addColorStop(0.62, '#9fd5ef');
-    sky.addColorStop(0.82, C_SKY_SUNSET);
-    sky.addColorStop(1, C_SKY_HORIZON);
+    sky.addColorStop(0, phase.skyColors[0]);
+    sky.addColorStop(0.45, phase.skyColors[1]);
+    sky.addColorStop(0.78, phase.skyColors[2]);
+    sky.addColorStop(1, phase.skyColors[3]);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, horizonY);
 
-    const sunX = W * 0.72;
-    const sunY = horizonY - H * 0.07;
-    const sunR = Math.max(34, Math.min(W, H) * 0.08);
-    const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 2.5);
-    sunGlow.addColorStop(0, 'rgba(255,217,61,0.95)');
-    sunGlow.addColorStop(0.45, 'rgba(255,217,61,0.35)');
-    sunGlow.addColorStop(1, 'rgba(255,217,61,0)');
-    ctx.fillStyle = sunGlow;
+    const celestialX = W * phase.celestial.x;
+    const celestialY = horizonY * phase.celestial.y;
+    const celestialR = Math.max(28, Math.min(W, H) * phase.celestial.radius);
+    const glow = ctx.createRadialGradient(celestialX, celestialY, celestialR * 0.2, celestialX, celestialY, celestialR * 2.7);
+    glow.addColorStop(0, phase.celestial.glow);
+    glow.addColorStop(0.45, phase.celestial.glow.replace(/0?\.\d+\)/, '0.28)'));
+    glow.addColorStop(1, phase.celestial.glow.replace(/0?\.\d+\)/, '0)'));
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(sunX, sunY, sunR * 2.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = C_SUN;
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.arc(celestialX, celestialY, celestialR * 2.7, 0, Math.PI * 2);
     ctx.fill();
 
-    this.drawClouds(W, horizonY);
+    if (phase.celestial.kind === 'sun') {
+      ctx.fillStyle = phase.celestial.body;
+      ctx.beginPath();
+      ctx.arc(celestialX, celestialY, celestialR, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = phase.celestial.body;
+      ctx.beginPath();
+      ctx.arc(celestialX, celestialY, celestialR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(celestialX + celestialR * 0.32, celestialY - celestialR * 0.05, celestialR * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      if (phase.celestial.accent) {
+        ctx.strokeStyle = phase.celestial.accent;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(celestialX, celestialY, celestialR, -1.9, 1.9);
+        ctx.stroke();
+      }
+      this.drawStaticStars(W, horizonY, phase);
+    }
+
+    const glowBand = ctx.createLinearGradient(0, horizonY * 0.45, 0, horizonY);
+    glowBand.addColorStop(0, 'rgba(255,255,255,0)');
+    glowBand.addColorStop(1, phase.horizonGlow);
+    ctx.fillStyle = glowBand;
+    ctx.fillRect(0, horizonY * 0.35, W, horizonY * 0.8);
+
+    this.drawClouds(W, horizonY, phase);
 
     const ocean = ctx.createLinearGradient(0, horizonY, 0, sandY);
-    ocean.addColorStop(0, `${C_OCEAN_MID}c7`);
-    ocean.addColorStop(0.4, `${C_OCEAN_LIGHT}db`);
-    ocean.addColorStop(1, `${C_OCEAN_DEEP}fa`);
+    ocean.addColorStop(0, phase.oceanColors[0]);
+    ocean.addColorStop(0.45, phase.oceanColors[1]);
+    ocean.addColorStop(1, phase.oceanColors[2]);
     ctx.fillStyle = ocean;
     ctx.fillRect(0, horizonY, W, sandY - horizonY);
+
+    const sand = ctx.createLinearGradient(0, sandY, 0, H);
+    sand.addColorStop(0, phase.sandColors[0]);
+    sand.addColorStop(1, phase.sandColors[1]);
+    ctx.fillStyle = sand;
+    ctx.fillRect(0, sandY, W, H - sandY);
+
+    for (let x = 0; x < W; x += 9) {
+      const n = Math.sin(x * 12.9898 + 78.233) * 43758.5453;
+      const frac = n - Math.floor(n);
+      const y = sandY + 4 + frac * (H - sandY - 8);
+      const size = 1 + ((x / 9) % 3 === 0 ? 1 : 0);
+      ctx.fillStyle = frac > 0.55 ? 'rgba(120,85,40,0.12)' : 'rgba(255,245,220,0.08)';
+      ctx.fillRect(x, y, size, size);
+    }
+
+    this.drawPalmTree(W * 0.08, sandY + 12, 1, 0.95, ctx);
+    if (W > 640) this.drawPalmTree(W * 0.92, sandY + 16, -1, 0.8, ctx);
+  }
+
+  private drawDynamicOcean(W: number, H: number, horizonY: number, sandY: number, phase: DayPhaseConfig) {
+    const ctx = this.ctx;
 
     for (let layer = 0; layer < 4; layer++) {
       const amp = 6 + layer * 4;
@@ -339,20 +443,9 @@ export class Renderer {
       }
       ctx.lineTo(W, sandY);
       ctx.closePath();
-      ctx.fillStyle = [
-        'rgba(65,105,225,0.22)',
-        'rgba(30,144,255,0.2)',
-        'rgba(0,206,209,0.18)',
-        'rgba(255,255,255,0.1)',
-      ][layer];
+      ctx.fillStyle = phase.waveLayerColors[layer];
       ctx.fill();
     }
-
-    const sand = ctx.createLinearGradient(0, sandY, 0, H);
-    sand.addColorStop(0, C_SAND);
-    sand.addColorStop(1, C_SAND_DARK);
-    ctx.fillStyle = sand;
-    ctx.fillRect(0, sandY, W, H - sandY);
 
     const foamY = sandY - 6 + Math.sin(this.time * 1.6) * 2;
     ctx.beginPath();
@@ -364,33 +457,25 @@ export class Renderer {
     }
     ctx.lineTo(W, H);
     ctx.closePath();
-    ctx.fillStyle = C_FOAM;
+    ctx.fillStyle = phase.foam;
+    ctx.shadowColor = phase.key === 'night' || phase.key === 'midnight' ? 'rgba(130,190,255,0.28)' : 'transparent';
+    ctx.shadowBlur = phase.key === 'night' || phase.key === 'midnight' ? 10 : 0;
     ctx.fill();
-
-    for (let x = 0; x < W; x += 9) {
-      const n = Math.sin(x * 12.9898 + 78.233) * 43758.5453;
-      const frac = n - Math.floor(n);
-      const y = sandY + 4 + frac * (H - sandY - 8);
-      const size = 1 + ((x / 9) % 3 === 0 ? 1 : 0);
-      ctx.fillStyle = frac > 0.55 ? 'rgba(120,85,40,0.12)' : 'rgba(255,245,220,0.1)';
-      ctx.fillRect(x, y, size, size);
-    }
-
-    this.drawPalmTree(W * 0.08, sandY + 12, 1, 0.95);
-    if (W > 640) this.drawPalmTree(W * 0.92, sandY + 16, -1, 0.8);
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
   }
 
-  private drawClouds(W: number, horizonY: number) {
-    const ctx = this.ctx;
+  private drawClouds(W: number, horizonY: number, phase: DayPhaseConfig) {
+    const ctx = this.offscreenCtx;
     for (let i = 0; i < 4; i++) {
-      const drift = (this.time * (8 + i * 2) + i * 140) % (W + 180);
+      const drift = ((i * 140) + (phase.key === 'midnight' ? 40 : 0)) % (W + 180);
       const x = drift - 90;
-      const y = horizonY * (0.16 + i * 0.1) + Math.sin(this.time * 0.3 + i) * 6;
+      const y = horizonY * (0.16 + i * 0.1) + (i % 2 === 0 ? 4 : -2);
       const w = 82 + i * 16;
       const h = 28 + i * 5;
       ctx.save();
       ctx.globalAlpha = 0.72 - i * 0.08;
-      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,250,245,0.95)' : 'rgba(255,255,255,0.88)';
+      ctx.fillStyle = phase.cloudColor;
       for (const [dx, dy, scale] of [
         [0, 0, 0.42],
         [w * 0.18, -h * 0.18, 0.34],
@@ -405,8 +490,147 @@ export class Renderer {
     }
   }
 
-  private drawPalmTree(baseX: number, baseY: number, leanDir: -1 | 1, scale: number) {
+  private drawStaticStars(W: number, horizonY: number, phase: DayPhaseConfig) {
+    const ctx = this.offscreenCtx;
+    const count = Math.max(24, Math.floor(W * phase.starDensity));
+    for (let i = 0; i < count; i++) {
+      const seed = i * 91.7;
+      const x = (Math.sin(seed * 1.37) * 43758.5453 % 1 + 1) % 1 * W;
+      const y = ((Math.sin(seed * 1.91) * 12731.33 % 1 + 1) % 1) * horizonY * 0.78;
+      const size = 0.8 + (((Math.sin(seed * 2.73) * 9182.1 % 1) + 1) % 1) * 1.8;
+      ctx.fillStyle = i % 7 === 0 ? 'rgba(255,244,210,0.8)' : 'rgba(255,255,255,0.72)';
+      ctx.fillRect(x, y, size, size);
+    }
+  }
+
+  private drawTwinklingStars(W: number, horizonY: number, phase: DayPhaseConfig) {
     const ctx = this.ctx;
+    const count = Math.max(24, Math.floor(W * phase.starDensity));
+    for (let i = 0; i < count; i++) {
+      const seed = i * 91.7;
+      const x = (Math.sin(seed * 1.37) * 43758.5453 % 1 + 1) % 1 * W;
+      const y = ((Math.sin(seed * 1.91) * 12731.33 % 1 + 1) % 1) * horizonY * 0.78;
+      const size = 0.8 + (((Math.sin(seed * 2.73) * 9182.1 % 1) + 1) % 1) * 1.8;
+      const twinkle = 0.28 + (Math.sin(this.time * (2 + (i % 5) * 0.35) + i * 0.9) + 1) * 0.22;
+      ctx.fillStyle = i % 7 === 0 ? `rgba(255,244,210,${twinkle})` : `rgba(255,255,255,${twinkle})`;
+      ctx.fillRect(x, y, size, size);
+    }
+  }
+
+  private drawShorelineWaves(W: number, H: number, horizonY: number, sandY: number, phase: DayPhaseConfig) {
+    const ctx = this.ctx;
+    const bandHeight = sandY - horizonY;
+
+    for (let i = 0; i < 5; i++) {
+      const progress = i / 4;
+      const baseY = sandY - 18 - progress * Math.min(90, bandHeight * 0.55) + Math.sin(this.time * (1.4 + i * 0.18) + i) * 2.2;
+      ctx.beginPath();
+      for (let x = 0; x <= W + 10; x += 10) {
+        const y = baseY
+          + Math.sin((x / (34 + i * 8)) + this.time * (1.8 + i * 0.2)) * (2.2 + i * 0.4)
+          + Math.cos((x / (19 + i * 4)) - this.time * (1.1 + i * 0.12)) * 0.9;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = phase.key === 'night' || phase.key === 'midnight'
+        ? `rgba(150,210,255,${0.18 + (1 - progress) * 0.2})`
+        : `rgba(255,255,255,${0.12 + (1 - progress) * 0.2})`;
+      ctx.lineWidth = 1.2 + (1 - progress) * 1.1;
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, sandY - 2);
+    for (let x = 0; x <= W + 8; x += 8) {
+      const y = sandY - 3
+        + Math.sin((x / 30) + this.time * 2.6) * 4.5
+        + Math.cos((x / 17) - this.time * 1.7) * 2;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fillStyle = phase.shoreline;
+    ctx.fill();
+  }
+
+  public getDayPhase(wave: number): DayPhaseConfig {
+    if (wave >= 13) {
+      return {
+        key: 'midnight',
+        skyColors: ['#081124', '#101b37', '#1d2147', '#2f2353'],
+        oceanColors: ['rgba(18,52,88,0.92)', 'rgba(14,78,108,0.94)', 'rgba(7,35,66,0.98)'],
+        waveLayerColors: ['rgba(7,35,66,0.2)', 'rgba(14,78,108,0.18)', 'rgba(18,52,88,0.16)', 'rgba(180,220,255,0.08)'],
+        sandColors: ['#8f7a61', '#6a5746'],
+        celestial: { kind: 'moon', x: 0.76, y: 0.2, radius: 0.06, glow: 'rgba(214,232,255,0.72)', body: '#eef4ff', accent: 'rgba(210,228,255,0.65)' },
+        horizonGlow: 'rgba(78,109,170,0.16)',
+        cloudColor: 'rgba(186,202,235,0.22)',
+        foam: 'rgba(205,232,255,0.55)',
+        shoreline: 'rgba(128,182,230,0.14)',
+        starDensity: 0.14,
+      };
+    }
+    if (wave >= 10) {
+      return {
+        key: 'night',
+        skyColors: ['#10203f', '#1e2b5d', '#31427a', '#5a4f85'],
+        oceanColors: ['rgba(34,82,132,0.9)', 'rgba(28,112,148,0.92)', 'rgba(16,51,97,0.98)'],
+        waveLayerColors: ['rgba(16,51,97,0.2)', 'rgba(28,112,148,0.18)', 'rgba(34,82,132,0.16)', 'rgba(180,220,255,0.08)'],
+        sandColors: ['#a58c6d', '#7f6952'],
+        celestial: { kind: 'moon', x: 0.72, y: 0.22, radius: 0.055, glow: 'rgba(224,234,255,0.7)', body: '#f5f8ff', accent: 'rgba(226,235,255,0.6)' },
+        horizonGlow: 'rgba(113,120,185,0.18)',
+        cloudColor: 'rgba(210,220,245,0.28)',
+        foam: 'rgba(210,230,255,0.6)',
+        shoreline: 'rgba(130,190,255,0.13)',
+        starDensity: 0.09,
+      };
+    }
+    if (wave >= 7) {
+      return {
+        key: 'evening',
+        skyColors: ['#ff9b6a', '#ff7e7e', '#d96ab4', '#6c63c9'],
+        oceanColors: ['rgba(74,146,216,0.85)', 'rgba(56,113,191,0.92)', 'rgba(43,70,142,0.98)'],
+        waveLayerColors: ['rgba(43,70,142,0.18)', 'rgba(56,113,191,0.17)', 'rgba(74,146,216,0.14)', 'rgba(255,255,255,0.1)'],
+        sandColors: ['#ddb07d', '#bf865b'],
+        celestial: { kind: 'sun', x: 0.74, y: 0.8, radius: 0.075, glow: 'rgba(255,188,110,0.9)', body: '#ffd07c' },
+        horizonGlow: 'rgba(255,194,128,0.28)',
+        cloudColor: 'rgba(255,235,225,0.8)',
+        foam: 'rgba(255,235,220,0.76)',
+        shoreline: 'rgba(255,214,185,0.14)',
+        starDensity: 0,
+      };
+    }
+    if (wave >= 4) {
+      return {
+        key: 'afternoon',
+        skyColors: ['#59b7ff', '#82d5ff', '#9fe0ff', '#d6f2ff'],
+        oceanColors: ['rgba(49,165,223,0.84)', 'rgba(25,191,214,0.9)', 'rgba(41,97,191,0.96)'],
+        waveLayerColors: ['rgba(41,97,191,0.18)', 'rgba(25,191,214,0.17)', 'rgba(49,165,223,0.14)', 'rgba(255,255,255,0.1)'],
+        sandColors: ['#e6c089', '#d3a66f'],
+        celestial: { kind: 'sun', x: 0.68, y: 0.2, radius: 0.08, glow: 'rgba(255,227,120,0.94)', body: '#ffe066' },
+        horizonGlow: 'rgba(255,245,190,0.18)',
+        cloudColor: 'rgba(255,255,255,0.84)',
+        foam: C_FOAM,
+        shoreline: 'rgba(255,255,255,0.12)',
+        starDensity: 0,
+      };
+    }
+    return {
+      key: 'morning',
+      skyColors: ['#8ecfff', '#b8e1ff', '#ffd1a8', '#ffe3b7'],
+      oceanColors: ['rgba(86,176,222,0.8)', 'rgba(56,198,204,0.88)', 'rgba(63,116,190,0.95)'],
+      waveLayerColors: ['rgba(63,116,190,0.18)', 'rgba(56,198,204,0.17)', 'rgba(86,176,222,0.14)', 'rgba(255,255,255,0.1)'],
+      sandColors: ['#e7c58f', '#cfa06c'],
+      celestial: { kind: 'sun', x: 0.78, y: 0.5, radius: 0.07, glow: 'rgba(255,210,125,0.92)', body: '#ffd97a' },
+      horizonGlow: 'rgba(255,215,156,0.22)',
+      cloudColor: 'rgba(255,249,240,0.82)',
+      foam: 'rgba(255,248,236,0.82)',
+      shoreline: 'rgba(255,243,225,0.14)',
+      starDensity: 0,
+    };
+  }
+
+  private drawPalmTree(baseX: number, baseY: number, leanDir: -1 | 1, scale: number, ctx: CanvasRenderingContext2D = this.ctx) {
     const trunkH = 90 * scale;
     const trunkW = 11 * scale;
     ctx.save();
@@ -711,6 +935,11 @@ export class Renderer {
 
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
+      const outline = word.destroying ? `rgba(0,0,0,${word.opacity * 0.4})` : 'rgba(0,0,0,0.7)';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = isBoss ? 3.5 : 3;
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
       if (i < typed) {
         ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width, 600);
         ctx.fillStyle = `rgba(103,232,249,${word.opacity})`;
@@ -721,20 +950,12 @@ export class Renderer {
         ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.25})`;
         ctx.shadowBlur = 0;
       } else {
-        ctx.font = getFont(this.width);
-        // Untyped chars — threatening shift from pale → red
-        if (isBoss) {
-          ctx.fillStyle = `rgba(252,165,165,${0.7 + danger * 0.25})`;
-          ctx.shadowColor = 'rgba(239,68,68,0.25)';
-          ctx.shadowBlur = 3;
-        } else if (danger > 0.7) {
-          ctx.fillStyle = `rgba(252,140,140,${0.6 + danger * 0.3})`;
-        } else if (danger > 0.4) {
-          ctx.fillStyle = `rgba(255,180,130,${0.5 + danger * 0.2})`;
-        } else {
-          ctx.fillStyle = `rgba(190,200,255,${0.45})`;
-        }
+        ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width);
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.98, Math.max(0.85, word.opacity * 0.95))})`;
+        ctx.shadowColor = 'rgba(0,0,0,0.2)';
+        ctx.shadowBlur = 2;
       }
+      ctx.strokeText(char, textX, textY + fs);
       ctx.fillText(char, textX, textY + fs);
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
