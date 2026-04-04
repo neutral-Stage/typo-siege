@@ -5,10 +5,22 @@ const PADDING_X = 14;
 const PADDING_Y = 8;
 
 // Colors
-const C_BG = '#0f0f13';
+const C_BG = '#87CEEB';
 const C_WORD_BG = 'rgba(255,255,255,0.04)';
 const C_WORD_BG_TARGET = 'rgba(99,102,241,0.1)';
 const C_DESTROYING = '#a5b4fc';
+const C_SKY_TOP = '#87CEEB';
+const C_SKY_SUNSET = '#FF6B6B';
+const C_SKY_HORIZON = '#FFB347';
+const C_SUN = '#FFD93D';
+const C_OCEAN_DEEP = '#4169E1';
+const C_OCEAN_MID = '#1E90FF';
+const C_OCEAN_LIGHT = '#00CED1';
+const C_SAND = '#DEB887';
+const C_SAND_DARK = '#D2B48C';
+const C_FOAM = 'rgba(255,255,255,0.82)';
+const C_PALM = 'rgba(14,23,18,0.82)';
+const C_CRAB_OUTLINE = '#000000';
 
 export type DestroyEffect = 'normal' | 'fire' | 'lightning' | 'shield' | 'chain';
 
@@ -82,14 +94,18 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#0f0f13';
+    const grad = ctx.createLinearGradient(0, 0, 0, this.height);
+    grad.addColorStop(0, C_SKY_TOP);
+    grad.addColorStop(0.62, C_SKY_SUNSET);
+    grad.addColorStop(1, C_SAND_DARK);
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.font = '700 72px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = '#a5b4fc';
+    ctx.fillStyle = 'rgba(255,248,220,0.92)';
     ctx.textAlign = 'center';
     ctx.fillText(`WAVE ${wave}`, this.width / 2, this.height / 2 - 16);
     ctx.font = '400 18px Inter, -apple-system, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
     ctx.fillText('Get ready!', this.width / 2, this.height / 2 + 24);
     ctx.textAlign = 'start';
     ctx.restore();
@@ -237,28 +253,22 @@ export class Renderer {
   clear(frozen = false) {
     const ctx = this.ctx;
     const W = this.width, H = this.height;
+    const horizonY = H * 0.6;
+    const sandY = H * 0.85;
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = C_BG;
-    ctx.fillRect(0, 0, W, H);
-
-    // Subtle grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.015)';
-    ctx.lineWidth = 1;
-    for (let y = 0; y < H; y += 40) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
+    this.drawBeachBackground(W, H, horizonY, sandY);
 
     // ─── Tower defense base ───
-    this.drawTowers(W, H);
+    this.drawTowers(W, H, sandY);
 
     // Danger zone glow
-    const dg = ctx.createLinearGradient(0, H - 70, 0, H);
-    dg.addColorStop(0, 'rgba(239,68,68,0)');
-    dg.addColorStop(0.6, 'rgba(239,68,68,0.02)');
-    dg.addColorStop(1, `rgba(239,68,68,${0.06 + Math.sin(this.time * 2) * 0.02})`);
+    const dg = ctx.createLinearGradient(0, sandY - 28, 0, H);
+    dg.addColorStop(0, 'rgba(220,38,38,0)');
+    dg.addColorStop(0.45, 'rgba(220,38,38,0.04)');
+    dg.addColorStop(1, `rgba(220,38,38,${0.14 + Math.sin(this.time * 2.2) * 0.03})`);
     ctx.fillStyle = dg;
-    ctx.fillRect(0, H - 70, W, 70);
+    ctx.fillRect(0, sandY - 28, W, H - sandY + 28);
 
     if (this.shieldFlash > 0) {
       ctx.fillStyle = `rgba(99,102,241,${this.shieldFlash * 0.15})`;
@@ -275,7 +285,161 @@ export class Renderer {
     }
   }
 
-  private drawTowers(W: number, H: number) {
+  private drawBeachBackground(W: number, H: number, horizonY: number, sandY: number) {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = C_BG;
+    ctx.fillRect(0, 0, W, H);
+
+    const sky = ctx.createLinearGradient(0, 0, 0, horizonY);
+    sky.addColorStop(0, C_SKY_TOP);
+    sky.addColorStop(0.62, '#9fd5ef');
+    sky.addColorStop(0.82, C_SKY_SUNSET);
+    sky.addColorStop(1, C_SKY_HORIZON);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, horizonY);
+
+    const sunX = W * 0.72;
+    const sunY = horizonY - H * 0.07;
+    const sunR = Math.max(34, Math.min(W, H) * 0.08);
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 2.5);
+    sunGlow.addColorStop(0, 'rgba(255,217,61,0.95)');
+    sunGlow.addColorStop(0.45, 'rgba(255,217,61,0.35)');
+    sunGlow.addColorStop(1, 'rgba(255,217,61,0)');
+    ctx.fillStyle = sunGlow;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C_SUN;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+
+    this.drawClouds(W, horizonY);
+
+    const ocean = ctx.createLinearGradient(0, horizonY, 0, sandY);
+    ocean.addColorStop(0, `${C_OCEAN_MID}c7`);
+    ocean.addColorStop(0.4, `${C_OCEAN_LIGHT}db`);
+    ocean.addColorStop(1, `${C_OCEAN_DEEP}fa`);
+    ctx.fillStyle = ocean;
+    ctx.fillRect(0, horizonY, W, sandY - horizonY);
+
+    for (let layer = 0; layer < 4; layer++) {
+      const amp = 6 + layer * 4;
+      const wavelength = 90 + layer * 45;
+      const speed = 0.45 + layer * 0.18;
+      const baseY = horizonY + 18 + layer * ((sandY - horizonY) / 5);
+      ctx.beginPath();
+      ctx.moveTo(0, sandY);
+      for (let x = 0; x <= W + 12; x += 12) {
+        const y = baseY
+          + Math.sin((x / wavelength) + this.time * speed) * amp
+          + Math.cos((x / (wavelength * 0.6)) + this.time * speed * 1.3) * (amp * 0.35);
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, sandY);
+      ctx.closePath();
+      ctx.fillStyle = [
+        'rgba(65,105,225,0.22)',
+        'rgba(30,144,255,0.2)',
+        'rgba(0,206,209,0.18)',
+        'rgba(255,255,255,0.1)',
+      ][layer];
+      ctx.fill();
+    }
+
+    const sand = ctx.createLinearGradient(0, sandY, 0, H);
+    sand.addColorStop(0, C_SAND);
+    sand.addColorStop(1, C_SAND_DARK);
+    ctx.fillStyle = sand;
+    ctx.fillRect(0, sandY, W, H - sandY);
+
+    const foamY = sandY - 6 + Math.sin(this.time * 1.6) * 2;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, sandY);
+    for (let x = 0; x <= W + 8; x += 8) {
+      const y = foamY + Math.sin((x / 24) + this.time * 2.1) * 3 + Math.cos((x / 13) + this.time * 1.3) * 1.5;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fillStyle = C_FOAM;
+    ctx.fill();
+
+    for (let x = 0; x < W; x += 9) {
+      const n = Math.sin(x * 12.9898 + 78.233) * 43758.5453;
+      const frac = n - Math.floor(n);
+      const y = sandY + 4 + frac * (H - sandY - 8);
+      const size = 1 + ((x / 9) % 3 === 0 ? 1 : 0);
+      ctx.fillStyle = frac > 0.55 ? 'rgba(120,85,40,0.12)' : 'rgba(255,245,220,0.1)';
+      ctx.fillRect(x, y, size, size);
+    }
+
+    this.drawPalmTree(W * 0.08, sandY + 12, 1, 0.95);
+    if (W > 640) this.drawPalmTree(W * 0.92, sandY + 16, -1, 0.8);
+  }
+
+  private drawClouds(W: number, horizonY: number) {
+    const ctx = this.ctx;
+    for (let i = 0; i < 4; i++) {
+      const drift = (this.time * (8 + i * 2) + i * 140) % (W + 180);
+      const x = drift - 90;
+      const y = horizonY * (0.16 + i * 0.1) + Math.sin(this.time * 0.3 + i) * 6;
+      const w = 82 + i * 16;
+      const h = 28 + i * 5;
+      ctx.save();
+      ctx.globalAlpha = 0.72 - i * 0.08;
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,250,245,0.95)' : 'rgba(255,255,255,0.88)';
+      for (const [dx, dy, scale] of [
+        [0, 0, 0.42],
+        [w * 0.18, -h * 0.18, 0.34],
+        [w * 0.36, 0, 0.38],
+        [w * 0.56, -h * 0.08, 0.28],
+      ] as const) {
+        ctx.beginPath();
+        ctx.ellipse(x + dx, y + dy, w * scale, h * (0.7 + scale * 0.25), 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  private drawPalmTree(baseX: number, baseY: number, leanDir: -1 | 1, scale: number) {
+    const ctx = this.ctx;
+    const trunkH = 90 * scale;
+    const trunkW = 11 * scale;
+    ctx.save();
+    ctx.strokeStyle = C_PALM;
+    ctx.fillStyle = C_PALM;
+    ctx.lineWidth = 6 * scale;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    ctx.quadraticCurveTo(baseX + leanDir * 18 * scale, baseY - trunkH * 0.55, baseX + leanDir * 26 * scale, baseY - trunkH);
+    ctx.stroke();
+    for (let i = 0; i < 5; i++) {
+      const angle = (-0.95 + i * 0.45) * leanDir;
+      const leafX = baseX + leanDir * 26 * scale;
+      const leafY = baseY - trunkH;
+      ctx.beginPath();
+      ctx.moveTo(leafX, leafY);
+      ctx.quadraticCurveTo(
+        leafX + Math.cos(angle) * 30 * scale,
+        leafY - 10 * scale + Math.sin(angle) * 16 * scale,
+        leafX + Math.cos(angle) * 54 * scale,
+        leafY + Math.sin(angle) * 26 * scale,
+      );
+      ctx.stroke();
+    }
+    for (let i = 0; i < 5; i++) {
+      const segY = baseY - i * (trunkH / 6);
+      ctx.fillRect(baseX - trunkW / 2, segY, trunkW, 1.5 * scale);
+    }
+    ctx.restore();
+  }
+
+  private drawTowers(W: number, H: number, sandY: number) {
     const ctx = this.ctx;
     const count = Math.max(3, Math.floor(W / 180));
     const spacing = W / count;
@@ -285,16 +449,20 @@ export class Renderer {
       const cx = spacing * i + spacing / 2;
       const x = cx - tW / 2, y = baseY - tH;
 
-      // Tower shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
       ctx.beginPath();
-      ctx.ellipse(cx, baseY + 2, tW / 2 + 4, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, baseY + 2, tW / 2 + 8, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Tower base (trapezoid)
-      const baseGrad = ctx.createLinearGradient(0, y + 20, 0, baseY);
-      baseGrad.addColorStop(0, 'rgba(99,102,241,0.18)');
-      baseGrad.addColorStop(1, 'rgba(99,102,241,0.08)');
+      const moat = ctx.createLinearGradient(0, sandY - 8, 0, baseY);
+      moat.addColorStop(0, 'rgba(255,255,255,0)');
+      moat.addColorStop(1, 'rgba(180,38,38,0.12)');
+      ctx.fillStyle = moat;
+      ctx.fillRect(cx - tW * 0.9, sandY - 6, tW * 1.8, baseY - sandY + 6);
+
+      const baseGrad = ctx.createLinearGradient(0, y + 18, 0, baseY);
+      baseGrad.addColorStop(0, 'rgba(240,211,165,0.95)');
+      baseGrad.addColorStop(1, 'rgba(194,152,94,0.92)');
       ctx.fillStyle = baseGrad;
       ctx.beginPath();
       ctx.moveTo(x - 10, baseY);
@@ -304,64 +472,59 @@ export class Renderer {
       ctx.closePath();
       ctx.fill();
 
-      // Tower body
       const bodyGrad = ctx.createLinearGradient(0, y, 0, y + 20);
-      bodyGrad.addColorStop(0, 'rgba(129,140,248,0.25)');
-      bodyGrad.addColorStop(1, 'rgba(99,102,241,0.15)');
+      bodyGrad.addColorStop(0, 'rgba(243,214,170,0.98)');
+      bodyGrad.addColorStop(1, 'rgba(204,166,108,0.92)');
       ctx.fillStyle = bodyGrad;
       ctx.fillRect(x + 3, y, tW - 6, 20);
+      ctx.strokeStyle = 'rgba(133,94,46,0.45)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 3, y, tW - 6, 20);
 
-      // Crenellations
       const crenW = (tW - 6) / 5;
       for (let c = 0; c < 5; c++) {
         if (c % 2 === 0) {
-          ctx.fillStyle = `rgba(129,140,248,${0.3 + Math.sin(this.time + i + c) * 0.05})`;
+          ctx.fillStyle = `rgba(224,190,135,${0.86 + Math.sin(this.time + i + c) * 0.05})`;
           ctx.fillRect(x + 3 + c * crenW, y - 7, crenW - 1, 7);
         }
       }
 
-      // Window glow (pulsing)
       const pulse = 0.4 + Math.sin(this.time * 1.8 + i * 1.3) * 0.25;
-      ctx.shadowColor = 'rgba(103,232,249,0.5)';
+      ctx.shadowColor = 'rgba(255,248,200,0.5)';
       ctx.shadowBlur = 10 * pulse;
-      ctx.fillStyle = `rgba(103,232,249,${pulse * 0.5})`;
+      ctx.fillStyle = `rgba(255,246,200,${pulse * 0.55})`;
       ctx.beginPath();
       ctx.arc(cx, y + 10, 3, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
 
-      // Cannon barrel (animated aim)
-      ctx.fillStyle = 'rgba(165,180,252,0.35)';
+      ctx.fillStyle = 'rgba(133,94,46,0.92)';
       ctx.fillRect(cx - 2, y - 14, 4, 14);
 
-      // Cannon tip glow
-      ctx.fillStyle = `rgba(103,232,249,${pulse * 0.6})`;
+      ctx.fillStyle = `rgba(255,246,200,${pulse * 0.65})`;
       ctx.beginPath();
       ctx.arc(cx, y - 14, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Connecting wall with stone texture feel
     const wallY = baseY - 18;
     const wallGrad = ctx.createLinearGradient(0, wallY, 0, baseY);
-    wallGrad.addColorStop(0, 'rgba(99,102,241,0.06)');
-    wallGrad.addColorStop(0.5, 'rgba(99,102,241,0.10)');
-    wallGrad.addColorStop(1, 'rgba(99,102,241,0.04)');
+    wallGrad.addColorStop(0, 'rgba(237,201,146,0.95)');
+    wallGrad.addColorStop(0.5, 'rgba(212,172,116,0.98)');
+    wallGrad.addColorStop(1, 'rgba(182,139,87,0.95)');
     ctx.fillStyle = wallGrad;
     ctx.fillRect(0, wallY, W, 18);
 
-    // Wall top edge (battlement line)
-    ctx.strokeStyle = 'rgba(129,140,248,0.2)';
+    ctx.strokeStyle = 'rgba(130,87,39,0.45)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, wallY);
     ctx.lineTo(W, wallY);
     ctx.stroke();
 
-    // Stone blocks pattern on wall
     for (let bx = 0; bx < W; bx += 24) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+      ctx.strokeStyle = 'rgba(255,244,220,0.16)';
       ctx.beginPath();
       ctx.moveTo(bx, wallY);
       ctx.lineTo(bx, baseY);
@@ -510,8 +673,8 @@ export class Renderer {
       const yOffset = bodyH * (0.08 + legT * 0.34);
       const spread = bodyW * (0.14 + legT * 0.03);
       const stride = (i % 2 === 0 ? legCycle : -legCycle) * (6 + speed * 0.03);
-      this.drawCrabLeg(cx, cy, bodyW, bodyH, -1, yOffset, spread, stride, shell.stroke, word.opacity, word.destroying, destroyProgress);
-      this.drawCrabLeg(cx, cy, bodyW, bodyH, 1, yOffset, spread, -stride, shell.stroke, word.opacity, word.destroying, destroyProgress);
+      this.drawCrabLeg(cx, cy, bodyW, bodyH, -1, yOffset, spread, stride, shell.fill, word.opacity, word.destroying, destroyProgress);
+      this.drawCrabLeg(cx, cy, bodyW, bodyH, 1, yOffset, spread, -stride, shell.fill, word.opacity, word.destroying, destroyProgress);
     }
 
     this.drawCrabClaw(cx, cy, bodyW, bodyH, -1, clawCycle, shell, isBoss, word.opacity, word.destroying, destroyProgress);
@@ -526,11 +689,6 @@ export class Renderer {
     this.drawCrabEyes(cx, cy, bodyW, bodyH, shell.eye, word.opacity, word.destroying, destroyProgress);
 
     if (isBoss && !word.destroying) {
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('👑', cx, cy - bodyH * 0.9 + Math.sin(this.time * 3.5) * 2);
-      ctx.textAlign = 'start';
-
       if (Math.random() < 0.35) {
         this.particles.push({
           x: cx + (Math.random() - 0.5) * bodyW,
@@ -603,41 +761,73 @@ export class Renderer {
   }
 
   private getCrabPalette(danger: number, isBoss: boolean, opacity: number) {
-    const bodyR = Math.round(62 + danger * 168 + (isBoss ? 24 : 0));
-    const bodyG = Math.round(80 - danger * 48 + (isBoss ? 8 : 0));
-    const bodyB = Math.round(185 - danger * 145);
-    const fill = `rgba(${bodyR},${bodyG},${bodyB},${(0.18 + danger * 0.16 + (isBoss ? 0.08 : 0)) * opacity})`;
-    const fill2 = `rgba(${Math.min(255, bodyR + 28)},${Math.min(255, bodyG + 16)},${Math.min(255, bodyB + 22)},${(0.26 + danger * 0.18) * opacity})`;
-    const stroke = isBoss
-      ? `rgba(248,113,113,${(0.45 + Math.sin(this.time * 5) * 0.12) * opacity})`
-      : `rgba(${Math.round(106 + danger * 118)},${Math.round(116 - danger * 56)},${Math.round(234 - danger * 118)},${(0.22 + danger * 0.26) * opacity})`;
+    const bodyR = isBoss ? Math.round(138 + danger * 42) : Math.round(220 + danger * 22);
+    const bodyG = isBoss ? Math.round(24 + danger * 14) : Math.round(38 + danger * 50);
+    const bodyB = isBoss ? Math.round(24 + danger * 10) : Math.round(38 + danger * 12);
+    const fill = `rgba(${bodyR},${bodyG},${bodyB},${(0.82 + danger * 0.14) * opacity})`;
+    const fill2 = `rgba(${Math.min(255, bodyR + 22)},${Math.min(255, bodyG + 18)},${Math.min(255, bodyB + 10)},${(0.9 + danger * 0.08) * opacity})`;
+    const stroke = `rgba(0,0,0,${0.96 * opacity})`;
     return {
       fill,
       fill2,
       stroke,
       eye: `rgba(255,255,255,${0.9 * opacity})`,
-      glow: isBoss ? 'rgba(239,68,68,0.42)' : `rgba(${bodyR},${bodyG},${bodyB},0.16)`,
-      crack: `rgba(255,255,255,${0.16 * opacity})`,
+      glow: isBoss ? 'rgba(127,29,29,0.35)' : `rgba(${bodyR},${bodyG},${bodyB},0.18)`,
+      crack: `rgba(255,235,215,${0.28 * opacity})`,
+      dark: `rgba(${Math.max(0, bodyR - 46)},${Math.max(0, bodyG - 24)},${Math.max(0, bodyB - 18)},${0.96 * opacity})`,
+      legAlt: `rgba(${Math.max(0, bodyR - 22)},${Math.max(0, bodyG - 12)},${Math.max(0, bodyB - 6)},${0.92 * opacity})`,
+      crown: `rgba(255,215,0,${0.95 * opacity})`,
     };
+  }
+
+  private getPixelSize(bodyW: number, bodyH: number) {
+    return Math.max(3, Math.round(Math.min(bodyW, bodyH) / 8));
+  }
+
+  private pixelRect(x: number, y: number, w: number, h: number, fill: string, stroke = C_CRAB_OUTLINE, lineWidth = 1.2) {
+    const ctx = this.ctx;
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    const rw = Math.max(1, Math.round(w));
+    const rh = Math.max(1, Math.round(h));
+    ctx.fillStyle = fill;
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.strokeRect(rx + 0.5, ry + 0.5, rw, rh);
   }
 
   private drawCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, targeted: boolean) {
     const ctx = this.ctx;
-    const grad = ctx.createLinearGradient(cx, cy - bodyH * 0.65, cx, cy + bodyH * 0.7);
-    grad.addColorStop(0, shell.fill2);
-    grad.addColorStop(1, shell.fill);
+    const px = this.getPixelSize(bodyW, bodyH);
+    const rows = isBoss ? [8, 10, 12, 14, 14, 12, 10, 8] : [6, 8, 10, 12, 12, 10, 8, 6];
+    const maxCols = Math.max(...rows);
+    const bodyX = cx - (maxCols * px) / 2;
+    const bodyY = cy - (rows.length * px) / 2;
 
     ctx.save();
     ctx.shadowColor = shell.glow;
-    ctx.shadowBlur = isBoss ? 24 : 12;
-    ctx.fillStyle = grad;
-    this.traceCrabBody(cx, cy, bodyW, bodyH, isBoss);
-    ctx.fill();
+    ctx.shadowBlur = isBoss ? 18 : 10;
+    ctx.globalAlpha = opacity;
+    for (let row = 0; row < rows.length; row++) {
+      const count = rows[row];
+      const offset = (maxCols - count) / 2;
+      for (let col = 0; col < count; col++) {
+        const x = bodyX + (offset + col) * px;
+        const y = bodyY + row * px;
+        const fill = row <= 2 ? shell.fill2 : row >= rows.length - 2 ? shell.dark : shell.fill;
+        this.pixelRect(x, y, px, px, fill, shell.stroke);
+      }
+    }
+    this.pixelRect(bodyX + px * 2, bodyY + px * 3, px * 2, px, shell.fill2, shell.stroke);
+    this.pixelRect(bodyX + maxCols * px - px * 4, bodyY + px * 3, px * 2, px, shell.fill2, shell.stroke);
+    this.pixelRect(bodyX + px * 3, bodyY + px * 5, px * 2, px, shell.dark, shell.stroke);
+    this.pixelRect(bodyX + maxCols * px - px * 5, bodyY + px * 5, px * 2, px, shell.dark, shell.stroke);
     ctx.restore();
 
     ctx.save();
     ctx.strokeStyle = shell.stroke;
-    ctx.lineWidth = isBoss ? 2.6 : 1.6;
+    ctx.lineWidth = isBoss ? 2.4 : 1.8;
     this.traceCrabBody(cx, cy, bodyW, bodyH, isBoss);
     ctx.stroke();
 
@@ -646,7 +836,7 @@ export class Renderer {
       ctx.lineWidth = 2.4;
       ctx.setLineDash([5, 3]);
       ctx.lineDashOffset = -this.time * 50;
-      this.traceCrabBody(cx, cy, bodyW * 1.03, bodyH * 1.04, false);
+      this.traceCrabBody(cx, cy, bodyW * 1.04, bodyH * 1.08, isBoss);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -654,175 +844,167 @@ export class Renderer {
     ctx.strokeStyle = shell.crack;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(cx - bodyW * 0.22, cy - bodyH * 0.12);
-    ctx.lineTo(cx - bodyW * 0.06, cy - bodyH * 0.02);
-    ctx.lineTo(cx - bodyW * 0.15, cy + bodyH * 0.18);
-    ctx.moveTo(cx + bodyW * 0.06, cy - bodyH * 0.1);
-    ctx.lineTo(cx + bodyW * 0.14, cy + bodyH * 0.04);
+    ctx.moveTo(cx - px * 2.5, cy - px * 1.5);
+    ctx.lineTo(cx - px, cy - px * 0.5);
+    ctx.lineTo(cx - px * 1.8, cy + px * 1.2);
+    ctx.moveTo(cx + px, cy - px * 1.2);
+    ctx.lineTo(cx + px * 1.8, cy + px * 0.4);
     ctx.stroke();
+
+    if (isBoss) {
+      const crownY = bodyY - px * 2;
+      this.pixelRect(cx - px * 2.5, crownY, px * 5, px, shell.crown, shell.stroke);
+      this.pixelRect(cx - px * 2, crownY - px, px, px, shell.crown, shell.stroke);
+      this.pixelRect(cx, crownY - px * 1.5, px, px * 1.5, shell.crown, shell.stroke);
+      this.pixelRect(cx + px, crownY - px, px, px, shell.crown, shell.stroke);
+    }
     ctx.restore();
   }
 
   private drawCrabBodyFragments(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroyProgress: number) {
     const ctx = this.ctx;
-    const split = 8 + destroyProgress * bodyW * 0.22;
-    const fall = destroyProgress * bodyH * 0.32;
-    const spin = destroyProgress * 0.7;
-    const halfW = bodyW * 0.52;
-
-    const drawHalf = (dir: -1 | 1) => {
-      ctx.save();
-      ctx.translate(cx + dir * split, cy + fall);
-      ctx.rotate(dir * spin);
-      ctx.fillStyle = shell.fill;
-      ctx.globalAlpha = opacity;
-      ctx.beginPath();
-      ctx.ellipse(dir * bodyW * 0.12, 0, halfW, bodyH * 0.5, 0, dir === -1 ? Math.PI * 0.55 : -Math.PI * 0.05, dir === -1 ? Math.PI * 1.45 : Math.PI * 0.95, false);
-      ctx.lineTo(dir * bodyW * 0.08, bodyH * 0.38);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = shell.stroke;
-      ctx.lineWidth = isBoss ? 2 : 1.2;
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    drawHalf(-1);
-    drawHalf(1);
+    const px = this.getPixelSize(bodyW, bodyH);
+    const rows = isBoss ? [8, 10, 12, 14, 14, 12, 10, 8] : [6, 8, 10, 12, 12, 10, 8, 6];
+    const maxCols = Math.max(...rows);
+    const startX = cx - (maxCols * px) / 2;
+    const startY = cy - (rows.length * px) / 2;
 
     ctx.save();
-    ctx.strokeStyle = shell.crack;
-    ctx.lineWidth = 1.4;
     ctx.globalAlpha = opacity;
-    ctx.beginPath();
-    ctx.moveTo(cx - bodyW * 0.06, cy - bodyH * 0.32);
-    ctx.lineTo(cx + bodyW * 0.03, cy - bodyH * 0.08);
-    ctx.lineTo(cx - bodyW * 0.02, cy + bodyH * 0.12);
-    ctx.lineTo(cx + bodyW * 0.08, cy + bodyH * 0.34);
-    ctx.stroke();
+    for (let row = 0; row < rows.length; row++) {
+      const count = rows[row];
+      const offset = (maxCols - count) / 2;
+      for (let col = 0; col < count; col++) {
+        const x = startX + (offset + col) * px;
+        const y = startY + row * px;
+        const dirX = col < count / 2 ? -1 : 1;
+        const driftX = dirX * (destroyProgress * (10 + (col % 3) * 5) + row * 0.6);
+        const driftY = destroyProgress * (12 + row * 3 + (col % 2) * 4);
+        const wobble = Math.sin(this.time * 18 + row * 2 + col) * destroyProgress * 2;
+        const fill = row <= 2 ? shell.fill2 : row >= rows.length - 2 ? shell.dark : shell.fill;
+        this.pixelRect(x + driftX, y + driftY + wobble, px, px, fill, shell.stroke);
+      }
+    }
+    for (const side of [-1, 1] as const) {
+      for (let i = 0; i < (isBoss ? 3 : 2); i++) {
+        const segX = cx + side * (bodyW * 0.24 + i * px * 1.5 + destroyProgress * 20);
+        const segY = cy + bodyH * 0.08 + i * px * 1.6 + destroyProgress * 18;
+        this.pixelRect(segX, segY, px * 1.2, px * 0.8, i % 2 === 0 ? shell.legAlt : shell.fill, shell.stroke);
+      }
+    }
     ctx.restore();
   }
 
   private drawCrabClaw(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, clawCycle: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
+    const px = this.getPixelSize(bodyW, bodyH);
     const attachX = cx + side * bodyW * 0.44;
     const attachY = cy - bodyH * 0.08;
-    const open = 0.2 + (clawCycle * 0.18 + 0.18);
+    const openStep = Math.round((clawCycle + 1) * 1.5);
     const driftX = destroying ? side * (18 + destroyProgress * 34) : 0;
     const driftY = destroying ? destroyProgress * 22 : 0;
-    const rotation = destroying ? side * destroyProgress * 1.2 : side * (0.18 + clawCycle * 0.08);
-    const baseLen = bodyW * (isBoss ? 0.34 : 0.28);
-    const size = isBoss ? 1.18 : 1;
+    const rotation = destroying ? side * destroyProgress * 0.5 : side * 0.08;
+    const baseLen = px * (isBoss ? 4.8 : 4.2);
 
     ctx.save();
     ctx.translate(attachX + driftX, attachY + driftY);
     ctx.rotate(rotation);
     ctx.globalAlpha = opacity;
-    ctx.strokeStyle = shell.stroke;
-    ctx.fillStyle = shell.fill2;
-    ctx.lineWidth = isBoss ? 2.4 : 1.5;
     ctx.shadowColor = isBoss ? shell.glow : 'transparent';
-    ctx.shadowBlur = isBoss ? 14 : 0;
+    ctx.shadowBlur = isBoss ? 10 : 0;
 
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(side * baseLen * 0.52, -bodyH * 0.04);
-    ctx.stroke();
+    for (let i = 0; i < 3; i++) {
+      this.pixelRect(side * (i * px), -px * 0.5, px, px, i % 2 === 0 ? shell.fill : shell.legAlt, shell.stroke);
+    }
 
-    for (const jaw of [-1, 1] as const) {
-      ctx.save();
-      ctx.translate(side * baseLen * 0.52, -bodyH * 0.04);
-      ctx.rotate(jaw * open);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(side * baseLen * 0.2, jaw * bodyH * 0.12, side * baseLen * 0.46 * size, jaw * bodyH * 0.18);
-      ctx.quadraticCurveTo(side * baseLen * 0.62 * size, jaw * bodyH * 0.08, side * baseLen * 0.58 * size, 0);
-      if (isBoss) {
-        for (let i = 0; i < 3; i++) {
-          const spikeX = side * baseLen * (0.18 + i * 0.12);
-          const spikeY = jaw * bodyH * (0.08 + i * 0.03);
-          ctx.lineTo(spikeX, spikeY);
-          ctx.lineTo(spikeX + side * 4, spikeY + jaw * 4);
-        }
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
+    const jawBaseX = side * baseLen;
+    const upperY = -px * (1 + openStep * 0.35);
+    const lowerY = px * (openStep * 0.32);
+    this.pixelRect(jawBaseX, upperY, px * 2, px, shell.fill2, shell.stroke);
+    this.pixelRect(jawBaseX + side * px * 1.5, upperY - px, px * 1.5, px, shell.fill2, shell.stroke);
+    this.pixelRect(jawBaseX, lowerY, px * 2, px, shell.fill2, shell.stroke);
+    this.pixelRect(jawBaseX + side * px * 1.5, lowerY + px, px * 1.5, px, shell.fill2, shell.stroke);
+
+    if (isBoss) {
+      this.pixelRect(jawBaseX + side * px * 2.8, upperY - px * 0.4, px, px * 0.8, shell.dark, shell.stroke);
+      this.pixelRect(jawBaseX + side * px * 2.8, lowerY + px * 0.6, px, px * 0.8, shell.dark, shell.stroke);
     }
     ctx.restore();
   }
 
   private drawCrabLeg(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, yOffset: number, spread: number, stride: number, color: string, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
+    const px = this.getPixelSize(bodyW, bodyH);
     const startX = cx + side * bodyW * 0.22;
     const startY = cy + yOffset * 0.2;
     const driftX = destroying ? side * (8 + destroyProgress * 18 + yOffset * 0.03) : 0;
     const driftY = destroying ? destroyProgress * (18 + yOffset * 0.04) : 0;
-    const bendX = startX + side * (spread + stride * 0.45) + driftX;
-    const bendY = startY + bodyH * 0.16 + Math.abs(stride) * 0.12 + driftY;
-    const endX = startX + side * (spread * 1.5 + stride) + driftX;
-    const endY = startY + bodyH * 0.42 + Math.abs(stride) * 0.08 + driftY;
+    const step = Math.round(stride / Math.max(1, px * 0.6));
+    const points = [
+      { x: startX, y: startY },
+      { x: startX + side * (spread * 0.7 + step * px * 0.6) + driftX, y: startY + px * 1.5 + driftY },
+      { x: startX + side * (spread * 1.15 + step * px * 0.9) + driftX, y: startY + px * 2.8 + driftY },
+      { x: startX + side * (spread * 1.5 + step * px * 1.2) + driftX, y: startY + px * 4 + driftY },
+    ];
+    const legAlt = color.startsWith('rgba(')
+      ? color.replace(/rgba\(([^,]+),([^,]+),([^,]+),([^)]+)\)/, (_, r, g, b, a) => `rgba(${Math.max(0, Number(r) - 24)},${Math.max(0, Number(g) - 10)},${Math.max(0, Number(b) - 6)},${a})`)
+      : color;
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.8;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(bendX, bendY);
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      this.pixelRect(
+        Math.min(p0.x, p1.x),
+        Math.min(p0.y, p1.y),
+        Math.max(px, Math.abs(p1.x - p0.x) + px * 0.45),
+        Math.max(px * 0.8, Math.abs(p1.y - p0.y) + px * 0.45),
+        i % 2 === 0 ? color : legAlt,
+        C_CRAB_OUTLINE,
+      );
+    }
     ctx.restore();
   }
 
   private drawCrabEyes(cx: number, cy: number, bodyW: number, bodyH: number, eyeColor: string, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
+    const px = this.getPixelSize(bodyW, bodyH);
     const driftY = destroying ? destroyProgress * 8 : 0;
-    const eyeLook = 1.2 + Math.sin(this.time * 2.2) * 0.4;
+    const eyeLook = Math.round(1 + Math.sin(this.time * 2.2) * 0.5);
     for (const side of [-1, 1] as const) {
       const stalkX = cx + side * bodyW * 0.14;
       const stalkTopY = cy - bodyH * 0.7 + driftY;
       const stalkBaseY = cy - bodyH * 0.34 + driftY;
       ctx.save();
       ctx.globalAlpha = opacity;
-      ctx.strokeStyle = eyeColor;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(stalkX, stalkBaseY);
-      ctx.lineTo(stalkX + side * 2, stalkTopY);
-      ctx.stroke();
-      ctx.fillStyle = eyeColor;
-      ctx.beginPath();
-      ctx.arc(stalkX + side * 2, stalkTopY, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = `rgba(15,23,42,${opacity})`;
-      ctx.beginPath();
-      ctx.arc(stalkX + side * 2 + side * 0.6, stalkTopY + eyeLook, 1.6, 0, Math.PI * 2);
-      ctx.fill();
+      this.pixelRect(stalkX - px * 0.3, stalkBaseY, px * 0.6, px * 2.2, eyeColor, C_CRAB_OUTLINE);
+      this.pixelRect(stalkX + side * px * 0.4, stalkTopY, px * 1.5, px * 1.5, eyeColor, C_CRAB_OUTLINE);
+      this.pixelRect(stalkX + side * px * 0.9 + side * eyeLook, stalkTopY + px * 0.5, px * 0.45, px * 0.45, `rgba(0,0,0,${opacity})`, C_CRAB_OUTLINE, 0.8);
       ctx.restore();
     }
   }
 
   private traceCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, isBoss: boolean) {
     const ctx = this.ctx;
+    const px = this.getPixelSize(bodyW, bodyH);
+    const rows = isBoss ? [8, 10, 12, 14, 14, 12, 10, 8] : [6, 8, 10, 12, 12, 10, 8, 6];
+    const maxCols = Math.max(...rows);
+    const startX = cx - (maxCols * px) / 2;
+    const startY = cy - (rows.length * px) / 2;
+    const points: { x: number; y: number }[] = [];
     ctx.beginPath();
-    if (isBoss) {
-      const spikes = 10;
-      for (let i = 0; i < spikes; i++) {
-        const t = (i / spikes) * Math.PI * 2;
-        const radiusX = bodyW * (i % 2 === 0 ? 0.56 : 0.48);
-        const radiusY = bodyH * (i % 2 === 0 ? 0.58 : 0.5);
-        const x = cx + Math.cos(t) * radiusX;
-        const y = cy + Math.sin(t) * radiusY;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      return;
+    for (let row = 0; row < rows.length; row++) {
+      const offset = (maxCols - rows[row]) / 2;
+      points.push({ x: startX + offset * px, y: startY + row * px });
     }
-    ctx.ellipse(cx, cy, bodyW * 0.5, bodyH * 0.5, 0, 0, Math.PI * 2);
+    for (let row = rows.length - 1; row >= 0; row--) {
+      const offset = (maxCols - rows[row]) / 2;
+      points.push({ x: startX + (offset + rows[row]) * px, y: startY + (row + 1) * px });
+    }
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.closePath();
   }
 
   updateAndDrawParticles(dt: number) {
