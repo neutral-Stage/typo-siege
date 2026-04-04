@@ -213,23 +213,30 @@ export class Renderer {
 
   // ─── Main render ───
 
-  clear(frozen = false) {
+  // Call at start of frame — applies shake offset
+  beginFrame() {
     this.time += 0.016;
     const ctx = this.ctx;
-    const W = this.width, H = this.height;
-
-    // Screen shake
     let shakeX = 0, shakeY = 0;
     if (this.shakeTimer > 0) {
       this.shakeTimer -= 0.016;
-      const progress = this.shakeTimer / this.shakeDuration;
+      const progress = Math.max(0, this.shakeTimer / this.shakeDuration);
       const intensity = this.shakeIntensity * progress;
       shakeX = (Math.random() - 0.5) * 2 * intensity;
       shakeY = (Math.random() - 0.5) * 2 * intensity;
     }
-
     ctx.save();
     ctx.translate(shakeX, shakeY);
+  }
+
+  // Call at end of frame — restores canvas state
+  endFrame() {
+    this.ctx.restore();
+  }
+
+  clear(frozen = false) {
+    const ctx = this.ctx;
+    const W = this.width, H = this.height;
 
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = C_BG;
@@ -266,7 +273,6 @@ export class Renderer {
       ctx.globalAlpha = 1;
       this.screenFlashOpacity = Math.max(0, this.screenFlashOpacity - 0.04);
     }
-    ctx.restore(); // restore shake translate
   }
 
   private drawTowers(W: number, H: number) {

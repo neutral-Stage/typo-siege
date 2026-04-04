@@ -158,8 +158,8 @@ export class Game {
     // Screen shake — stronger for longer words and bosses
     const wordLen = word.entry.text.length;
     const isBoss = word.entry.difficulty >= 5;
-    const intensity = Math.min(8, 2 + wordLen * 0.5 + (isBoss ? 3 : 0));
-    this.renderer.shake(intensity, 0.12 + (isBoss ? 0.08 : 0));
+    const intensity = Math.min(12, 4 + wordLen * 0.8 + (isBoss ? 5 : 0));
+    this.renderer.shake(intensity, 0.2 + (isBoss ? 0.15 : 0));
 
     if (!silent) {
       soundDestroy();
@@ -280,9 +280,11 @@ export class Game {
 
     if (this.phase === 'waveTransition') {
       this.waveTransTimer -= dt;
+      this.renderer.beginFrame();
       this.renderer.clear(false);
       this.renderer.drawWaveTransition(this.wave, this.waveTransTimer / this.waveTransDuration);
       this.renderer.updateAndDrawParticles(dt);
+      this.renderer.endFrame();
       if (this.waveTransTimer <= 0) {
         this.phase = 'playing';
         this.lastTime = time;
@@ -338,10 +340,12 @@ export class Game {
 
     this.words = this.words.filter(w => !(w.destroying && w.opacity <= 0 && w.destroyTimer <= -0.1));
 
+    this.renderer.beginFrame();
     this.renderer.clear(frozen);
     this.renderer.drawWords(this.words, this.activeTarget);
     this.renderer.updateAndDrawParticles(dt);
     this.renderer.drawCombo();
+    this.renderer.endFrame();
   }
 
   // Public getters
