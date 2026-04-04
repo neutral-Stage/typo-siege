@@ -338,12 +338,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Start button
-startBtn.addEventListener('click', () => {
-  // Update streak
+function startGame() {
   updateStreak();
-  // Track game
   trackGame();
-
   game = new Game(canvas, updateUI, difficulty);
   game.start();
   overlay.classList.add('hidden');
@@ -351,6 +348,13 @@ startBtn.addEventListener('click', () => {
   lastCombo = 0;
   updateUI();
   focusMobileInput();
+  setTimeout(showTapHint, 500);
+}
+startBtn.addEventListener('click', startGame);
+// Also handle touch for faster mobile response
+startBtn.addEventListener('touchend', (e) => {
+  e.preventDefault(); // Prevent ghost click
+  startGame();
 });
 
 // Power-up click handlers
@@ -403,11 +407,7 @@ function showTapHint() {
   }
 }
 
-// Show hint on game start
-startBtn.addEventListener('click', () => {
-  // Will show hint after overlay hides
-  setTimeout(showTapHint, 500);
-});
+// Show hint on game start (handled in startGame)
 
 // Tap anywhere on canvas to focus
 canvas.addEventListener('touchstart', (e) => {
@@ -419,8 +419,9 @@ canvas.addEventListener('touchstart', (e) => {
 
 // Also tap on the game wrapper (catches taps on empty areas)
 document.getElementById('game-wrapper')!.addEventListener('touchstart', (e) => {
-  // Don't intercept power-up taps
-  if ((e.target as HTMLElement).closest('.power-up')) return;
+  // Don't intercept overlay, power-up, or button taps
+  const target = e.target as HTMLElement;
+  if (target.closest('#overlay') || target.closest('.power-up') || target.closest('button')) return;
   if (game.isPlaying) {
     e.preventDefault();
     focusMobileInput();
@@ -467,9 +468,10 @@ document.addEventListener('touchmove', (e) => {
   if (game.isPlaying) e.preventDefault();
 }, { passive: false });
 
-// Prevent double-tap zoom
+// Prevent double-tap zoom (only during gameplay)
 let lastTap = 0;
 document.addEventListener('touchend', (e) => {
+  if (!game.isPlaying) return;
   const now = Date.now();
   if (now - lastTap < 300) {
     e.preventDefault();
