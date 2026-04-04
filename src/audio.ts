@@ -62,7 +62,7 @@ export function soundCombo(combo: number) {
   play(base, 0.12, 'sine', 0.06);
 }
 
-// ─── Background Music — intense, driving battle synth ───
+// ─── Background Music — electronic battle theme ───
 
 let musicGain: GainNode | null = null;
 let masterGain: GainNode | null = null;
@@ -75,169 +75,162 @@ function initMusicNodes() {
   const c = getCtx();
 
   masterGain = c.createGain();
-  masterGain.gain.value = musicMuted ? 0 : 0.18;
+  masterGain.gain.value = musicMuted ? 0 : 0.15;
   masterGain.connect(c.destination);
 
   musicGain = c.createGain();
   musicGain.gain.value = 0;
   musicGain.connect(masterGain);
 
-  // ─── Driving bass pulse — rhythmic A1 ───
-  const bass = c.createOscillator();
-  bass.type = 'sawtooth';
-  bass.frequency.value = 55;
-  const bassFilter = c.createBiquadFilter();
-  bassFilter.type = 'lowpass';
-  bassFilter.frequency.value = 200;
-  const bassGain = c.createGain();
-  bassGain.gain.value = 0.25;
-  bass.connect(bassFilter);
-  bassFilter.connect(bassGain);
-  bassGain.connect(musicGain);
-  bass.start();
-  musicNodes.push(bass);
-
-  // ─── Sub rumble — E1 ───
-  const sub = c.createOscillator();
-  sub.type = 'sine';
-  sub.frequency.value = 41.2;
-  const subGain = c.createGain();
-  subGain.gain.value = 0.3;
-  sub.connect(subGain);
-  subGain.connect(musicGain);
-  sub.start();
-  musicNodes.push(sub);
-
-  // ─── Power chord pad — Am (A2, C3, E3) ───
-  const padNotes = [110, 130.81, 164.81, 220];
-  for (const freq of padNotes) {
+  // Warm pad — triangle wave Em7 chord (E3, G3, B3, D4)
+  const padFreqs = [164.81, 196, 246.94, 293.66];
+  for (const freq of padFreqs) {
     const osc = c.createOscillator();
-    osc.type = 'sawtooth';
+    osc.type = 'triangle';
     osc.frequency.value = freq;
-    const filter = c.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 500;
-    filter.Q.value = 2;
     const g = c.createGain();
-    g.gain.value = 0.07;
-    osc.connect(filter);
-    filter.connect(g);
+    g.gain.value = 0.08;
+    osc.connect(g);
     g.connect(musicGain!);
     osc.start();
     musicNodes.push(osc);
   }
 
-  // ─── High tension string — E4 ───
-  const tension = c.createOscillator();
-  tension.type = 'sawtooth';
-  tension.frequency.value = 329.63;
-  const tensionFilter = c.createBiquadFilter();
-  tensionFilter.type = 'bandpass';
-  tensionFilter.frequency.value = 600;
-  tensionFilter.Q.value = 5;
-  const tensionGain = c.createGain();
-  tensionGain.gain.value = 0.02;
-  tension.connect(tensionFilter);
-  tensionFilter.connect(tensionGain);
-  tensionGain.connect(musicGain!);
-  tension.start();
-  musicNodes.push(tension);
-
-  // ─── Start rhythmic patterns ───
-  scheduleBassPulse();
-  scheduleArpeggio();
-  scheduleTensionHit();
+  // Start rhythmic patterns
+  scheduleKick();
+  scheduleHihat();
+  scheduleLead();
+  scheduleRiser();
 }
 
-// ─── Rhythmic bass pulse every ~0.5s ───
-function scheduleBassPulse() {
+// ─── Kick drum — every 0.4s ───
+function scheduleKick() {
   if (!musicPlaying) return;
   const t = setTimeout(() => {
-    if (!musicPlaying || musicMuted) { scheduleBassPulse(); return; }
+    if (!musicPlaying || musicMuted) { scheduleKick(); return; }
     try {
       const c = getCtx();
       const osc = c.createOscillator();
       osc.type = 'sine';
-      osc.frequency.value = 55;
+      osc.frequency.setValueAtTime(150, c.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, c.currentTime + 0.12);
       const g = c.createGain();
-      g.gain.value = 0.15;
-      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25);
+      g.gain.setValueAtTime(0.3, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.15);
       osc.connect(g);
       g.connect(musicGain!);
       osc.start(c.currentTime);
-      osc.stop(c.currentTime + 0.25);
+      osc.stop(c.currentTime + 0.15);
     } catch {}
-    scheduleBassPulse();
-  }, 500 + Math.random() * 100);
+    scheduleKick();
+  }, 400);
   musicTimeouts.push(t);
 }
 
-// ─── Fast arpeggio runs — pentatonic, every 0.3-0.8s ───
-const PENTATONIC = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25, 784];
-
-function scheduleArpeggio() {
+// ─── Hihat — every 0.2s ───
+function scheduleHihat() {
   if (!musicPlaying) return;
-  const delay = 300 + Math.random() * 500;
   const t = setTimeout(() => {
-    if (!musicPlaying || musicMuted) { scheduleArpeggio(); return; }
+    if (!musicPlaying || musicMuted) { scheduleHihat(); return; }
     try {
       const c = getCtx();
-      // Pick 2-4 notes for a quick run
-      const count = 2 + Math.floor(Math.random() * 3);
-      const baseIdx = Math.floor(Math.random() * (PENTATONIC.length - count));
-      for (let i = 0; i < count; i++) {
-        const freq = PENTATONIC[baseIdx + i];
+      // White noise burst via buffer
+      const bufferSize = c.sampleRate * 0.04;
+      const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = c.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = c.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 8000;
+
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.06, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.04);
+
+      noise.connect(filter);
+      filter.connect(g);
+      g.connect(musicGain!);
+      noise.start(c.currentTime);
+    } catch {}
+    scheduleHihat();
+  }, 200);
+  musicTimeouts.push(t);
+}
+
+// ─── Lead melody — Em pentatonic phrases ───
+const LEAD_SCALE = [329.63, 392, 440, 493.88, 587.33, 659.25, 784, 880];
+
+function scheduleLead() {
+  if (!musicPlaying) return;
+  const delay = 600 + Math.random() * 1200;
+  const t = setTimeout(() => {
+    if (!musicPlaying || musicMuted) { scheduleLead(); return; }
+    try {
+      const c = getCtx();
+      const noteCount = 2 + Math.floor(Math.random() * 4);
+      const baseIdx = Math.floor(Math.random() * (LEAD_SCALE.length - noteCount));
+
+      for (let i = 0; i < noteCount; i++) {
+        const freq = LEAD_SCALE[baseIdx + i];
         const osc = c.createOscillator();
         osc.type = 'square';
         osc.frequency.value = freq;
-        const g = c.createGain();
-        const noteStart = c.currentTime + i * 0.08;
-        g.gain.setValueAtTime(0.03, noteStart);
-        g.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.15);
+
         const filter = c.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = 1200;
+        filter.frequency.value = 1500;
+        filter.Q.value = 3;
+
+        const g = c.createGain();
+        const noteStart = c.currentTime + i * 0.12;
+        g.gain.setValueAtTime(0.04, noteStart);
+        g.gain.exponentialRampToValueAtTime(0.001, noteStart + 0.2);
+
         osc.connect(filter);
         filter.connect(g);
         g.connect(musicGain!);
         osc.start(noteStart);
-        osc.stop(noteStart + 0.15);
+        osc.stop(noteStart + 0.2);
       }
     } catch {}
-    scheduleArpeggio();
+    scheduleLead();
   }, delay);
   musicTimeouts.push(t);
 }
 
-// ─── Occasional tension hits — dramatic stabs ───
-function scheduleTensionHit() {
+// ─── Riser — ascending sweep every 8-12s ───
+function scheduleRiser() {
   if (!musicPlaying) return;
-  const delay = 3000 + Math.random() * 5000;
+  const delay = 8000 + Math.random() * 4000;
   const t = setTimeout(() => {
-    if (!musicPlaying || musicMuted) { scheduleTensionHit(); return; }
+    if (!musicPlaying || musicMuted) { scheduleRiser(); return; }
     try {
       const c = getCtx();
-      // Dissonant stab — minor second or tritone
-      const baseFreqs = [220, 233.08, 311.13, 415.3]; // A, Bb, Eb, Ab
-      const freq = baseFreqs[Math.floor(Math.random() * baseFreqs.length)];
-      for (const type of ['sawtooth', 'square'] as OscillatorType[]) {
-        const osc = c.createOscillator();
-        osc.type = type;
-        osc.frequency.value = freq;
-        const g = c.createGain();
-        g.gain.setValueAtTime(type === 'sawtooth' ? 0.04 : 0.025, c.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.6);
-        const filter = c.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 900;
-        osc.connect(filter);
-        filter.connect(g);
-        g.connect(musicGain!);
-        osc.start(c.currentTime);
-        osc.stop(c.currentTime + 0.6);
-      }
+      const osc = c.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(100, c.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(2000, c.currentTime + 2);
+
+      const filter = c.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(200, c.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(3000, c.currentTime + 2);
+
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.01, c.currentTime);
+      g.gain.linearRampToValueAtTime(0.05, c.currentTime + 1.5);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 2);
+
+      osc.connect(filter);
+      filter.connect(g);
+      g.connect(musicGain!);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + 2);
     } catch {}
-    scheduleTensionHit();
+    scheduleRiser();
   }, delay);
   musicTimeouts.push(t);
 }
@@ -252,7 +245,7 @@ export function startMusic() {
     if (musicGain) {
       const now = c.currentTime;
       musicGain.gain.setValueAtTime(0, now);
-      musicGain.gain.linearRampToValueAtTime(1, now + 1.5);
+      musicGain.gain.linearRampToValueAtTime(1, now + 1);
     }
   } catch (e) {
     console.warn('startMusic failed', e);
@@ -284,7 +277,7 @@ export function toggleMute(): boolean {
     const c = getCtx();
     if (masterGain) {
       masterGain.gain.linearRampToValueAtTime(
-        musicMuted ? 0 : 0.18,
+        musicMuted ? 0 : 0.15,
         c.currentTime + 0.1,
       );
     }

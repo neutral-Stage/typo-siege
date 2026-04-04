@@ -155,6 +155,12 @@ export class Game {
 
     this.spawnEffectForWord(word, effect);
 
+    // Screen shake — stronger for longer words and bosses
+    const wordLen = word.entry.text.length;
+    const isBoss = word.entry.difficulty >= 5;
+    const intensity = Math.min(8, 2 + wordLen * 0.5 + (isBoss ? 3 : 0));
+    this.renderer.shake(intensity, 0.12 + (isBoss ? 0.08 : 0));
+
     if (!silent) {
       soundDestroy();
       if (this.combo > 1) {

@@ -47,6 +47,9 @@ export class Renderer {
   private screenFlashColor = '';
   private screenFlashOpacity = 0;
   private time = 0;
+  private shakeIntensity = 0;
+  private shakeDuration = 0;
+  private shakeTimer = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -68,6 +71,11 @@ export class Renderer {
   showCombo(combo: number) { this.comboText = `COMBO ×${combo}`; this.comboOpacity = 1; }
   showShieldFlash() { this.shieldFlash = 1; }
   showScreenFlash(color: string) { this.screenFlashColor = color; this.screenFlashOpacity = 0.35; }
+  shake(intensity = 3, duration = 0.15) {
+    this.shakeIntensity = intensity;
+    this.shakeDuration = duration;
+    this.shakeTimer = duration;
+  }
 
   drawWaveTransition(wave: number, progress: number) {
     let alpha = progress > 0.5 ? (1 - progress) * 2 : progress * 2;
@@ -209,6 +217,20 @@ export class Renderer {
     this.time += 0.016;
     const ctx = this.ctx;
     const W = this.width, H = this.height;
+
+    // Screen shake
+    let shakeX = 0, shakeY = 0;
+    if (this.shakeTimer > 0) {
+      this.shakeTimer -= 0.016;
+      const progress = this.shakeTimer / this.shakeDuration;
+      const intensity = this.shakeIntensity * progress;
+      shakeX = (Math.random() - 0.5) * 2 * intensity;
+      shakeY = (Math.random() - 0.5) * 2 * intensity;
+    }
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = C_BG;
     ctx.fillRect(0, 0, W, H);
@@ -244,6 +266,7 @@ export class Renderer {
       ctx.globalAlpha = 1;
       this.screenFlashOpacity = Math.max(0, this.screenFlashOpacity - 0.04);
     }
+    ctx.restore(); // restore shake translate
   }
 
   private drawTowers(W: number, H: number) {
