@@ -184,15 +184,15 @@ let lastCombo = 0;
 async function trackVisit() {
   try {
     await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/up');
-    fetchCounts(); // Refresh display
-  } catch { /* silent fail */ }
+  } catch { /* silent */ }
+  fetchCounts();
 }
 
 async function trackGame() {
   try {
     await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/games/up');
-    fetchCounts(); // Refresh display
-  } catch { /* silent fail */ }
+  } catch { /* silent */ }
+  fetchCounts();
 }
 
 async function fetchCounts() {
@@ -203,11 +203,9 @@ async function fetchCounts() {
     ]);
     const vData = await vRes.json();
     const gData = await gRes.json();
-    const visitEl = document.getElementById('stat-visits');
-    const totalEl = document.getElementById('stat-totalgames');
-    if (visitEl) visitEl.textContent = vData?.count ?? '—';
-    if (totalEl) totalEl.textContent = gData?.count ?? '—';
-  } catch { /* silent */ }
+    if (statVisits) statVisits.textContent = vData?.count ?? '—';
+    if (statTotalGames) statTotalGames.textContent = gData?.count ?? '—';
+  } catch (e) { console.warn('counter fetch failed', e); }
 }
 
 // Track visit on page load
@@ -227,7 +225,6 @@ function showMenu() {
   menuHighscore.textContent = hs > 0 ? `Best: ${hs}` : '';
 
   // Update stats pills
-  statBest.textContent = String(stats.bestScore);
   statBest.textContent = String(stats.bestScore);
   statStreak.textContent = String(stats.currentStreak);
   statWords.textContent = String(stats.totalWordsDestroyed);
@@ -251,7 +248,6 @@ function showGameOver() {
   startBtn.textContent = 'Play Again';
 
   // Update stats pills
-  statBest.textContent = String(stats.bestScore);
   statBest.textContent = String(stats.bestScore);
   statStreak.textContent = String(stats.currentStreak);
   statWords.textContent = String(stats.totalWordsDestroyed);
