@@ -250,7 +250,8 @@ function showMenu() {
   overlayStats.style.display = 'none';
   newHighscoreBadge.style.display = 'none';
   exitBtn.style.display = 'none';
-  muteBtn.style.display = 'none';
+  muteBtn.style.display = '';
+  muteBtn.textContent = isMusicMuted() ? '🔇' : '🔊';
   startBtn.textContent = 'Start Game';
 
   const hs = game.savedHighScore;
@@ -266,7 +267,8 @@ function showMenu() {
 
 function showGameOver() {
   exitBtn.style.display = 'none';
-  muteBtn.style.display = 'none';
+  muteBtn.style.display = '';
+  muteBtn.textContent = isMusicMuted() ? '🔇' : '🔊';
   overlayTitle.textContent = 'GAME OVER';
   overlaySubtitle.textContent = '';
   overlayStats.style.display = 'block';
