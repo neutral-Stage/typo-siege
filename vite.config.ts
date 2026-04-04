@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/typo-siege/',
+  base: '/',
   build: {
     outDir: 'dist',
   },
