@@ -143,8 +143,11 @@ export class Game {
     this.totalWordsDestroyed++;
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
-    const charge = chargeAmount(word.entry.text.length, word.entry.difficulty);
-    distributeCharge(this.powerUps, charge);
+    // Only charge power-ups from typing kills, not from power-up effects
+    if (!silent) {
+      const charge = chargeAmount(word.entry.text.length, word.entry.difficulty);
+      distributeCharge(this.powerUps, charge);
+    }
 
     this.spawnEffectForWord(word, effect);
 

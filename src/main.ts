@@ -179,6 +179,7 @@ function randomFrom<T>(arr: T[]): T {
 
 // Track last combo to detect new thresholds
 let lastCombo = 0;
+let bossTauntShown = false;
 
 // ─── Analytics (counterapi.dev — free, no signup) ───
 async function fetchCounterCount(
@@ -313,9 +314,12 @@ function updateUI() {
   }
   lastCombo = combo;
 
-  // Boss wave taunt
-  if (game.isBossWaveFlag) {
+  // Boss wave taunt (show once per boss wave)
+  if (game.isBossWaveFlag && !bossTauntShown) {
+    bossTauntShown = true;
     showTaunt(randomFrom(TAUNTS.bossIncoming));
+  } else if (!game.isBossWaveFlag) {
+    bossTauntShown = false;
   }
 
   // Game over — update stats
@@ -355,6 +359,7 @@ function startGame() {
   overlay.classList.add('hidden');
   builtBy.style.display = 'none';
   lastCombo = 0;
+  bossTauntShown = false;
   updateUI();
   focusMobileInput();
   setTimeout(showTapHint, 500);

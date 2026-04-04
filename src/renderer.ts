@@ -450,10 +450,23 @@ export class Renderer {
     const text = word.entry.text;
     const typed = word.typed;
     const isBoss = word.entry.difficulty >= 5;
-    const bobY = Math.sin(this.time * 2 + word.id * 0.7) * 2;
+    const fs = getFontSize(this.width);
+    const speed = word.speed;
+    // Subtle vibration based on speed — feels aggressive
+    const vibX = (Math.sin(this.time * 12 + word.id * 3) * Math.min(speed * 0.006, 1.2));
+    const vibY = (Math.cos(this.time * 10 + word.id * 2) * Math.min(speed * 0.004, 0.8));
 
     ctx.save();
-    ctx.translate(0, bobY);
+    ctx.translate(vibX, vibY);
+
+    // ─── Falling motion trail ───
+    if (!word.destroying && speed > 40) {
+      const trailAlpha = Math.min(speed / 400, 0.15);
+      ctx.fillStyle = isBoss ? `rgba(239,68,68,${trailAlpha})` : `rgba(99,102,241,${trailAlpha})`;
+      ctx.beginPath();
+      ctx.roundRect(word.x, word.y - speed * 0.04, word.width, word.height, isBoss ? 14 : 10);
+      ctx.fill();
+    }
 
     // ─── Target tracking glow ───
     if (isTarget && typed > 0) {
@@ -461,25 +474,47 @@ export class Renderer {
       ctx.shadowBlur = 20;
     }
 
-    // ─── Enemy body ───
+    // ─── Word body — sharp angular shape ───
     let bgColor: string;
     if (word.destroying) {
       bgColor = `rgba(99,102,241,${word.opacity * 0.1})`;
     } else if (isBoss) {
-      const bossPulse = 0.12 + Math.sin(this.time * 3) * 0.04;
-      bgColor = `rgba(239,68,68,${bossPulse})`;
+      bgColor = `rgba(239,68,68,${0.12 + Math.sin(this.time * 3) * 0.04})`;
     } else if (isTarget) {
-      bgColor = C_WORD_BG_TARGET;
+      bgColor = 'rgba(99,102,241,0.1)';
     } else {
-      bgColor = C_WORD_BG;
+      bgColor = 'rgba(255,255,255,0.04)';
     }
 
-    ctx.fillStyle = bgColor;
-    ctx.beginPath();
-    ctx.roundRect(word.x, word.y, word.width, word.height, isBoss ? 14 : 10);
-    ctx.fill();
+    // Angular shape instead of pill
+    const r = isBoss ? 4 : 3;
+    const w = word.width, h = word.height;
+    const cx = word.x + w / 2, cy = word.y + h / 2;
 
-    // Border with animated dash for targets
+    ctx.fillStyle = bgColor;
+    if (isBoss) {
+      // Diamond-ish shape for bosses
+      ctx.beginPath();
+      ctx.moveTo(cx, word.y - 2);
+      ctx.lineTo(word.x + w + 4, cy);
+      ctx.lineTo(cx, word.y + h + 2);
+      ctx.lineTo(word.x - 4, cy);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Sharp rect for normal words
+      ctx.beginPath();
+      ctx.moveTo(word.x + r, word.y);
+      ctx.lineTo(word.x + w - r, word.y);
+      ctx.lineTo(word.x + w + 2, cy);
+      ctx.lineTo(word.x + w - r, word.y + h);
+      ctx.lineTo(word.x + r, word.y + h);
+      ctx.lineTo(word.x - 2, cy);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Border
     if (!word.destroying) {
       if (isTarget && typed > 0) {
         ctx.strokeStyle = isBoss
@@ -491,11 +526,11 @@ export class Renderer {
         ctx.stroke();
         ctx.setLineDash([]);
       } else if (isBoss) {
-        ctx.strokeStyle = `rgba(239,68,68,${0.25 + Math.sin(this.time * 4) * 0.1})`;
+        ctx.strokeStyle = `rgba(239,68,68,${0.3 + Math.sin(this.time * 4) * 0.1})`;
         ctx.lineWidth = 2;
         ctx.stroke();
       } else {
-        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.strokeStyle = `rgba(99,102,241,${0.08 + Math.sin(this.time * 2 + word.id) * 0.03})`;
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -504,52 +539,46 @@ export class Renderer {
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // ─── Enemy face ───
-    if (!word.destroying) {
-      this.drawEnemyFace(word, isTarget, isBoss);
-    }
-
     // ─── Boss crown ───
     if (isBoss && !word.destroying) {
-      ctx.font = '16px sans-serif';
+      ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
       const crownBob = Math.sin(this.time * 3) * 2;
-      ctx.fillText('👑', word.x + word.width / 2, word.y - 6 + crownBob);
+      ctx.fillText('👑', cx, word.y - 8 + crownBob);
       ctx.textAlign = 'start';
     }
 
-    // ─── Health bar ───
-    if (!word.destroying && text.length > 2) {
-      const hbX = word.x + 4, hbY = word.y + word.height - 4;
-      const hbW = word.width - 8, hbH = 3;
-      const progress = typed / text.length;
-
-      ctx.fillStyle = 'rgba(255,255,255,0.05)';
-      ctx.beginPath();
-      ctx.roundRect(hbX, hbY, hbW, hbH, 1.5);
+    // ─── Glow aura around untyped words ───
+    if (!word.destroying && !isTarget && !isBoss) {
+      const auraAlpha = 0.03 + Math.sin(this.time * 1.5 + word.id) * 0.02;
+      ctx.shadowColor = `rgba(99,102,241,${auraAlpha * 3})`;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = 'transparent';
       ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+    }
 
-      if (progress > 0) {
-        const r = Math.floor(239 * (1 - progress));
-        const g = Math.floor(68 + 180 * progress);
-        ctx.fillStyle = `rgba(${r},${g},100,0.7)`;
-        ctx.beginPath();
-        ctx.roundRect(hbX, hbY, hbW * progress, hbH, 1.5);
-        ctx.fill();
-      }
+    // ─── Boss fire aura ───
+    if (isBoss && !word.destroying) {
+      const auraAlpha = 0.06 + Math.sin(this.time * 2) * 0.03;
+      ctx.shadowColor = `rgba(239,68,68,${auraAlpha * 2})`;
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = 'transparent';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
     }
 
     // ─── Draw characters ───
-    const fs = getFontSize(this.width);
     const textY = word.y + PADDING_Y;
     let textX = word.x + PADDING_X;
 
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       if (i < typed) {
-        ctx.font = isBoss ? `700 ${getFontSize(this.width)}px Inter, sans-serif` : getFont(this.width, 600);
+        ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width, 600);
         ctx.fillStyle = isBoss ? `rgba(252,165,165,${word.opacity})` : `rgba(99,102,241,${word.opacity})`;
-        // Typed char glow
         ctx.shadowColor = isBoss ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)';
         ctx.shadowBlur = 4;
       } else if (word.destroying) {
@@ -559,8 +588,8 @@ export class Renderer {
       } else {
         ctx.font = getFont(this.width);
         ctx.fillStyle = isBoss
-          ? `rgba(252,165,165,${word.opacity * 0.75})`
-          : `rgba(255,255,255,${word.opacity * (isTarget ? 0.8 : 0.45)})`;
+          ? `rgba(252,165,165,${word.opacity * 0.8})`
+          : `rgba(255,255,255,${word.opacity * (isTarget ? 0.85 : 0.5)})`;
         ctx.shadowBlur = 0;
       }
       ctx.fillText(char, textX, textY + fs);
@@ -584,63 +613,7 @@ export class Renderer {
       ctx.shadowBlur = 0;
     }
 
-    ctx.restore(); // undo bobY translate
-  }
-
-  private drawEnemyFace(word: FallingWord, isTarget: boolean, isBoss: boolean) {
-    const ctx = this.ctx;
-    const faceX = word.x + PADDING_X + 3;
-    const faceY = word.y + PADDING_Y - 1;
-    const eyeSpacing = isBoss ? 9 : 7;
-    const eyeSize = isBoss ? 3.5 : 2.5;
-
-    // Look direction — eyes track toward closest tower or wander
-    const lookX = isTarget ? 0.5 : Math.sin(this.time * 2.5 + word.id) * 1;
-    const lookY = isTarget ? 0.3 : Math.cos(this.time * 1.8 + word.id * 2) * 0.5;
-
-    for (const side of [-1, 1]) {
-      const ex = faceX + (side === 1 ? eyeSpacing : 0);
-
-      // Eye white (oval)
-      ctx.fillStyle = isBoss ? 'rgba(254,202,202,0.7)' : 'rgba(255,255,255,0.5)';
-      ctx.beginPath();
-      ctx.ellipse(ex, faceY, eyeSize + 0.5, eyeSize, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Pupil
-      const pupilColor = isTarget ? '#6366f1' : isBoss ? '#dc2626' : '#ef4444';
-      ctx.fillStyle = pupilColor;
-      ctx.beginPath();
-      ctx.arc(ex + lookX, faceY + lookY, eyeSize * 0.55, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Pupil shine
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.beginPath();
-      ctx.arc(ex + lookX - 0.5, faceY + lookY - 0.5, eyeSize * 0.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Angry eyebrow for targets
-      if (isTarget || isBoss) {
-        ctx.strokeStyle = isBoss ? 'rgba(239,68,68,0.6)' : 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(ex - eyeSize, faceY - eyeSize - 1 + (side === -1 ? 1 : 0));
-        ctx.lineTo(ex + eyeSize, faceY - eyeSize - 1 + (side === 1 ? 1 : 0));
-        ctx.stroke();
-      }
-    }
-
-    // Mouth — little zigzag frown for bosses, simple for others
-    if (isBoss) {
-      ctx.strokeStyle = 'rgba(239,68,68,0.5)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(faceX - 1, faceY + 5);
-      ctx.lineTo(faceX + 2, faceY + 3.5);
-      ctx.lineTo(faceX + 5, faceY + 5);
-      ctx.stroke();
-    }
+    ctx.restore();
   }
 
   updateAndDrawParticles(dt: number) {
