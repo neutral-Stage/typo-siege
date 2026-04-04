@@ -33,6 +33,7 @@ const achTitle = document.getElementById('ach-title')!;
 const achDesc = document.getElementById('ach-desc')!;
 const tapHint = document.getElementById('tap-hint')!;
 const exitBtn = document.getElementById('exit-btn')!;
+const pauseBtn = document.getElementById('pause-btn')!;
 const muteBtn = document.getElementById('mute-btn')!;
 
 // Power-up UI
@@ -244,14 +245,21 @@ trackVisit();
 // ─── Game state ───
 let game = new Game(canvas, updateUI, difficulty);
 
+function syncPauseButton() {
+  pauseBtn.textContent = game.isPaused ? '▶' : '⏸';
+  pauseBtn.setAttribute('aria-label', game.isPaused ? 'Resume game' : 'Pause game');
+}
+
 function showMenu() {
   overlayTitle.textContent = 'TYPO SIEGE';
   overlaySubtitle.textContent = 'Type words. Charge towers. Defend the page.';
   overlayStats.style.display = 'none';
   newHighscoreBadge.style.display = 'none';
   exitBtn.style.display = 'none';
+  pauseBtn.style.display = 'none';
   muteBtn.style.display = '';
   muteBtn.textContent = isMusicMuted() ? '🔇' : '🔊';
+  syncPauseButton();
   startBtn.textContent = 'Start Game';
 
   const hs = game.savedHighScore;
@@ -267,8 +275,10 @@ function showMenu() {
 
 function showGameOver() {
   exitBtn.style.display = 'none';
+  pauseBtn.style.display = 'none';
   muteBtn.style.display = '';
   muteBtn.textContent = isMusicMuted() ? '🔇' : '🔊';
+  syncPauseButton();
   overlayTitle.textContent = 'GAME OVER';
   overlaySubtitle.textContent = '';
   overlayStats.style.display = 'block';
@@ -301,6 +311,8 @@ function updateUI() {
   // Typed text
   typedText.textContent = game.typedText;
   inputDisplay.classList.toggle('active', game.typedText.length > 0);
+  pauseBtn.style.display = (game.isPlaying || game.isPaused) ? '' : 'none';
+  syncPauseButton();
 
   // Power-up charges
   for (const pu of game.puStates) {
@@ -365,6 +377,13 @@ function updateUI() {
 
 // ─── Input handling ───
 document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && (game.isPlaying || game.isPaused)) {
+    e.preventDefault();
+    game.togglePause();
+    updateUI();
+    return;
+  }
+
   // Escape to exit during gameplay
   if (e.key === 'Escape' && game.isPlaying) {
     game.stop();
@@ -398,8 +417,10 @@ function startGame() {
   game.start();
   overlay.classList.add('hidden');
   exitBtn.style.display = '';
+  pauseBtn.style.display = '';
   muteBtn.style.display = '';
   muteBtn.textContent = isMusicMuted() ? '🔇' : '🔊';
+  syncPauseButton();
   startMusic();
   builtBy.style.display = 'none';
   lastCombo = 0;
@@ -433,6 +454,18 @@ exitBtn.addEventListener('touchend', (e) => {
     overlay.classList.remove('hidden');
     showMenu();
   }
+});
+
+function togglePauseFromButton() {
+  if (!game.isPlaying && !game.isPaused) return;
+  game.togglePause();
+  updateUI();
+}
+
+pauseBtn.addEventListener('click', togglePauseFromButton);
+pauseBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  togglePauseFromButton();
 });
 
 // Mute button

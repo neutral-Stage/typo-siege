@@ -325,12 +325,18 @@
     #start-btn:active {
       transform: scale(0.98);
     }
-    #exit-btn {
+    #top-bar {
       position: fixed;
       top: 12px;
       left: 50%;
       transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
       z-index: 50;
+      pointer-events: none;
+    }
+    .top-bar-btn {
       padding: 8px 16px;
       font-size: 13px;
       font-weight: 700;
@@ -342,39 +348,30 @@
       transition: all 0.15s;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+    .top-bar-btn:hover {
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.82);
+      border-color: rgba(255,255,255,0.16);
     }
     #exit-btn:hover {
       background: rgba(239,68,68,0.15);
       border-color: rgba(239,68,68,0.3);
       color: #fca5a5;
     }
-    #exit-btn:active { transform: translateX(-50%) scale(0.95); }
+    #pause-btn,
     #mute-btn {
-      position: fixed;
-      bottom: 16px;
-      left: 16px;
-      z-index: 50;
-      width: 40px;
+      width: 44px;
       height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 18px;
-      color: rgba(255,255,255,0.5);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.15s;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
       padding: 0;
     }
-    #mute-btn:hover {
-      background: rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.8);
-    }
-    #mute-btn:active { transform: scale(0.9); }
+    .top-bar-btn:active { transform: scale(0.94); }
     #new-highscore-badge {
       background: linear-gradient(135deg, #6366f1, #a5b4fc);
       color: white;
@@ -729,8 +726,11 @@
       <button id="start-btn">Start Game</button>
     </div>
 
-    <button id="mute-btn">🔊</button>
-    <button id="exit-btn" style="display:none">🚪 Exit</button>
+    <div id="top-bar">
+      <button id="exit-btn" class="top-bar-btn" style="display:none">🚪 Exit</button>
+      <button id="pause-btn" class="top-bar-btn" style="display:none" aria-label="Pause game">⏸</button>
+      <button id="mute-btn" class="top-bar-btn" aria-label="Mute audio">🔊</button>
+    </div>
 
     <div id="achievement-toast">
       <div class="ach-icon" id="ach-icon"></div>

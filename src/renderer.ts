@@ -481,204 +481,79 @@ export class Renderer {
     const typed = word.typed;
     const isBoss = word.entry.difficulty >= 5;
     const fs = getFontSize(this.width);
-    const W = this.width, H = this.height;
+    const H = this.height;
     const speed = word.speed;
 
-    // How close to the danger zone (0=top, 1=bottom)
     const danger = Math.min(1, Math.max(0, word.y / (H - 80)));
-
-    // Aggressive vibration — stronger for bosses and near-bottom words
-    const vibAmp = (0.3 + danger * 1.8 + (isBoss ? 1.5 : 0)) * (speed / 55);
-    const vibX = Math.sin(this.time * 16 + word.id * 3) * vibAmp;
-    const vibY = Math.cos(this.time * 13 + word.id * 2) * vibAmp * 0.6;
+    const gaitBase = this.time * (2.4 + speed * 0.03) + (word.legPhase ?? 0);
+    const legCycle = Math.sin(gaitBase);
+    const clawCycle = Math.sin(gaitBase * 1.25 + word.id * 0.4);
+    const bob = word.destroying ? 0 : Math.sin(gaitBase * 1.7) * (1.5 + danger * 1.4);
+    const sway = word.destroying ? 0 : Math.cos(gaitBase * 0.9) * (0.8 + danger * 0.5);
+    const destroyProgress = word.destroying
+      ? Math.min(1, Math.max(0, 1 - Math.max(word.destroyTimer, 0) / 0.4))
+      : 0;
+    const bodyW = word.width * (isBoss ? 1.06 : 1);
+    const bodyH = word.height * (isBoss ? 1.28 : 1.18);
+    const cx = word.x + word.width / 2 + sway;
+    const cy = word.y + word.height / 2 + bob;
+    const shell = this.getCrabPalette(danger, isBoss, word.opacity);
+    const vibAmp = (0.18 + danger * 0.55 + (isBoss ? 0.4 : 0)) * (speed / 55);
+    const vibX = Math.sin(this.time * 15 + word.id * 3) * vibAmp;
+    const vibY = Math.cos(this.time * 12 + word.id * 2) * vibAmp * 0.4;
 
     ctx.save();
     ctx.translate(vibX, vibY);
-
-    const w = word.width, h = word.height;
-    const cx = word.x + w / 2, cy = word.y + h / 2;
-
-    // ─── Falling streak trail (hexagonal, matching body) ───
-    if (!word.destroying && speed > 25) {
-      const streakCount = Math.min(4, Math.ceil(speed / 35));
-      for (let s = 1; s <= streakCount; s++) {
-        const streakAlpha = (0.1 - s * 0.02) * (1 + danger * 2);
-        const streakY = word.y - speed * 0.025 * s;
-        const sx = word.x + s * 0.8, sw = w - s * 1.6, sh = h;
-        const scy = streakY + sh / 2;
-        ctx.fillStyle = isBoss
-          ? `rgba(239,68,68,${streakAlpha})`
-          : danger > 0.5
-            ? `rgba(239,68,68,${streakAlpha * 0.7})`
-            : `rgba(99,102,241,${streakAlpha})`;
-        ctx.beginPath();
-        if (isBoss) {
-          // Boss diamond streak
-          ctx.moveTo(sx + sw / 2, streakY);
-          ctx.lineTo(sx + sw, scy);
-          ctx.lineTo(sx + sw / 2, streakY + sh);
-          ctx.lineTo(sx, scy);
-        } else {
-          // Hexagonal streak matching body
-          ctx.moveTo(sx + sw * 0.25, streakY);
-          ctx.lineTo(sx + sw * 0.75, streakY);
-          ctx.lineTo(sx + sw, scy);
-          ctx.lineTo(sx + sw * 0.75, streakY + sh);
-          ctx.lineTo(sx + sw * 0.25, streakY + sh);
-          ctx.lineTo(sx, scy);
-        }
-        ctx.closePath();
-        ctx.fill();
-      }
+    const legCountPerSide = isBoss ? 3 : 2;
+    for (let i = 0; i < legCountPerSide; i++) {
+      const legT = i / (legCountPerSide - 1);
+      const yOffset = bodyH * (0.08 + legT * 0.34);
+      const spread = bodyW * (0.14 + legT * 0.03);
+      const stride = (i % 2 === 0 ? legCycle : -legCycle) * (6 + speed * 0.03);
+      this.drawCrabLeg(cx, cy, bodyW, bodyH, -1, yOffset, spread, stride, shell.stroke, word.opacity, word.destroying, destroyProgress);
+      this.drawCrabLeg(cx, cy, bodyW, bodyH, 1, yOffset, spread, -stride, shell.stroke, word.opacity, word.destroying, destroyProgress);
     }
 
-    // ─── Threat aura — pulses more urgently near bottom ───
-    if (!word.destroying) {
-      const auraFreq = 3 + danger * 8;
-      const auraPulse = 0.4 + Math.sin(this.time * auraFreq) * 0.35;
-      const auraSize = 8 + danger * 20 + (isBoss ? 14 : 0);
-      ctx.shadowColor = isBoss
-        ? `rgba(239,68,68,${auraPulse * 0.35})`
-        : danger > 0.5
-          ? `rgba(239,68,68,${auraPulse * 0.25})`
-          : `rgba(99,102,241,${auraPulse * 0.12})`;
-      ctx.shadowBlur = auraSize;
-    }
+    this.drawCrabClaw(cx, cy, bodyW, bodyH, -1, clawCycle, shell, isBoss, word.opacity, word.destroying, destroyProgress);
+    this.drawCrabClaw(cx, cy, bodyW, bodyH, 1, -clawCycle, shell, isBoss, word.opacity, word.destroying, destroyProgress);
 
-    // ─── Body — dark menacing shape that gets redder near danger ───
     if (!word.destroying) {
-      const redShift = danger;
-      const bodyR = Math.floor(25 + redShift * 100 + (isBoss ? 140 : 0));
-      const bodyG = Math.floor(15 + (isBoss ? 10 : 0));
-      const bodyB = Math.floor(35 - redShift * 15 + (isBoss ? 15 : 0));
-      const bodyA = 0.18 + danger * 0.12 + (isBoss ? 0.12 : 0);
-      ctx.fillStyle = `rgba(${bodyR},${bodyG},${bodyB},${bodyA})`;
-
-      if (isBoss) {
-        // Boss: jagged star-diamond
-        const spike = 7 + Math.sin(this.time * 6) * 2.5;
-        ctx.beginPath();
-        ctx.moveTo(cx, word.y - spike);
-        ctx.lineTo(word.x + w * 0.75, word.y + 1);
-        ctx.lineTo(word.x + w + spike * 0.6, cy - 2);
-        ctx.lineTo(word.x + w * 0.75, cy - 1);
-        ctx.lineTo(cx + 4, cy);
-        ctx.lineTo(word.x + w * 0.75, cy + 1);
-        ctx.lineTo(word.x + w + spike * 0.6, cy + 2);
-        ctx.lineTo(word.x + w * 0.75, word.y + h - 1);
-        ctx.lineTo(cx, word.y + h + spike);
-        ctx.lineTo(word.x + w * 0.25, word.y + h - 1);
-        ctx.lineTo(word.x - spike * 0.6, cy + 2);
-        ctx.lineTo(word.x + w * 0.25, cy + 1);
-        ctx.lineTo(cx - 4, cy);
-        ctx.lineTo(word.x + w * 0.25, cy - 1);
-        ctx.lineTo(word.x - spike * 0.6, cy - 2);
-        ctx.lineTo(word.x + w * 0.25, word.y + 1);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        // Normal: aggressive pointed hexagon
-        ctx.beginPath();
-        ctx.moveTo(word.x + w * 0.25, word.y - 3);
-        ctx.lineTo(word.x + w * 0.75, word.y - 3);
-        ctx.lineTo(word.x + w + 4, cy);
-        ctx.lineTo(word.x + w * 0.75, word.y + h + 3);
-        ctx.lineTo(word.x + w * 0.25, word.y + h + 3);
-        ctx.lineTo(word.x - 4, cy);
-        ctx.closePath();
-        ctx.fill();
-      }
+      this.drawCrabBody(cx, cy, bodyW, bodyH, shell, isBoss, word.opacity, isTarget && typed > 0);
     } else {
-      ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.06})`;
-      ctx.beginPath();
-      ctx.moveTo(word.x + w * 0.25, word.y);
-      ctx.lineTo(word.x + w * 0.75, word.y);
-      ctx.lineTo(word.x + w, cy);
-      ctx.lineTo(word.x + w * 0.75, word.y + h);
-      ctx.lineTo(word.x + w * 0.25, word.y + h);
-      ctx.lineTo(word.x, cy);
-      ctx.closePath();
-      ctx.fill();
+      this.drawCrabBodyFragments(cx, cy, bodyW, bodyH, shell, isBoss, word.opacity, destroyProgress);
     }
 
-    // ─── Border — shifts indigo→crimson as word descends ───
-    if (!word.destroying) {
-      const bAlpha = 0.12 + danger * 0.35;
-      const bWidth = 1 + danger * 2;
+    this.drawCrabEyes(cx, cy, bodyW, bodyH, shell.eye, word.opacity, word.destroying, destroyProgress);
 
-      if (isTarget && typed > 0) {
-        ctx.strokeStyle = `rgba(103,232,249,${0.6 + Math.sin(this.time * 10) * 0.2})`;
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([5, 3]);
-        ctx.lineDashOffset = -this.time * 50;
-        ctx.stroke();
-        ctx.setLineDash([]);
-      } else if (isBoss) {
-        ctx.strokeStyle = `rgba(239,68,68,${0.4 + Math.sin(this.time * 5) * 0.15})`;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-      } else {
-        const bR = Math.floor(99 + danger * 140);
-        const bG = Math.floor(102 - danger * 70);
-        const bB = Math.floor(241 - danger * 120);
-        ctx.strokeStyle = `rgba(${bR},${bG},${bB},${bAlpha})`;
-        ctx.lineWidth = bWidth;
-        ctx.stroke();
+    if (isBoss && !word.destroying) {
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('👑', cx, cy - bodyH * 0.9 + Math.sin(this.time * 3.5) * 2);
+      ctx.textAlign = 'start';
+
+      if (Math.random() < 0.35) {
+        this.particles.push({
+          x: cx + (Math.random() - 0.5) * bodyW,
+          y: cy - bodyH * 0.2 + Math.random() * bodyH * 0.7,
+          vx: (Math.random() - 0.5) * 20,
+          vy: -Math.random() * 50 - 10,
+          char: '•', opacity: 0.7, font: '6px Inter', size: 3,
+          rotation: 0, vr: 0,
+          color: ['#ef4444','#f97316','#fbbf24'][Math.floor(Math.random() * 3)],
+          effect: 'normal', life: 0.5, maxLife: 0.5, scale: 1, glowSize: 5,
+        });
       }
     }
 
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // ─── Dripping drops — words bleed downward near danger zone ───
-    if (!word.destroying && danger > 0.15) {
-      const dripCount = Math.ceil(danger * 5);
-      for (let d = 0; d < dripCount; d++) {
-        const dx = word.x + PADDING_X + ((word.id * 7 + d * 41) % Math.max(1, Math.floor(w - PADDING_X * 2)));
-        const dripPhase = (this.time * 2.5 + d * 0.7 + word.id * 0.4) % 1;
-        const dripY = word.y + h + dripPhase * 25;
-        const dripA = (1 - dripPhase) * 0.35 * danger;
-        const dripColor = isBoss || danger > 0.5
-          ? `rgba(239,68,68,${dripA})`
-          : `rgba(99,102,241,${dripA})`;
-        ctx.fillStyle = dripColor;
-        ctx.beginPath();
-        // Teardrop shape
-        ctx.ellipse(dx, dripY, 1.5 - dripPhase * 0.5, 2 + (1 - dripPhase), 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // ─── Boss crown + fire particles ───
-    if (isBoss && !word.destroying) {
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('👑', cx, word.y - 10 + Math.sin(this.time * 3.5) * 2);
-      ctx.textAlign = 'start';
-
-      // Ambient fire particles
-      if (Math.random() < 0.35) {
-        this.particles.push({
-          x: cx + (Math.random() - 0.5) * w,
-          y: word.y + Math.random() * h,
-          vx: (Math.random() - 0.5) * 20,
-          vy: -Math.random() * 50 - 10,
-          char: '•', opacity: 0.7, font: '6px Inter', size: 3,
-          rotation: 0, vr: 0,
-          color: ['#ef4444','#f97316','#fbbf24'][Math.floor(Math.random()*3)],
-          effect: 'normal', life: 0.5, maxLife: 0.5, scale: 1, glowSize: 5,
-        });
-      }
-    }
-
-    // ─── Draw characters ───
-    const textY = word.y + PADDING_Y;
-    let textX = word.x + PADDING_X;
+    const textY = cy - fs * 0.1;
+    let textX = cx - word.width / 2 + PADDING_X;
 
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       if (i < typed) {
-        // Typed chars glow cyan
         ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width, 600);
         ctx.fillStyle = `rgba(103,232,249,${word.opacity})`;
         ctx.shadowColor = 'rgba(103,232,249,0.5)';
@@ -708,24 +583,246 @@ export class Renderer {
       textX += ctx.measureText(char).width + 0.5;
     }
 
-    // ─── Typed slash underline ───
     if (typed > 0 && !word.destroying) {
       ctx.strokeStyle = `rgba(103,232,249,${word.opacity * 0.7})`;
       ctx.lineWidth = 2.5;
       ctx.shadowColor = 'rgba(103,232,249,0.6)';
       ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.moveTo(word.x + PADDING_X, textY + fs + 4);
+      ctx.moveTo(cx - word.width / 2 + PADDING_X, textY + fs + 4);
       let ulW = 0;
       ctx.font = getFont(this.width, 600);
       for (let i = 0; i < typed; i++) ulW += ctx.measureText(text[i]).width + 0.5;
-      ctx.lineTo(word.x + PADDING_X + ulW, textY + fs + 4);
+      ctx.lineTo(cx - word.width / 2 + PADDING_X + ulW, textY + fs + 4);
       ctx.stroke();
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
     }
 
     ctx.restore();
+  }
+
+  private getCrabPalette(danger: number, isBoss: boolean, opacity: number) {
+    const bodyR = Math.round(62 + danger * 168 + (isBoss ? 24 : 0));
+    const bodyG = Math.round(80 - danger * 48 + (isBoss ? 8 : 0));
+    const bodyB = Math.round(185 - danger * 145);
+    const fill = `rgba(${bodyR},${bodyG},${bodyB},${(0.18 + danger * 0.16 + (isBoss ? 0.08 : 0)) * opacity})`;
+    const fill2 = `rgba(${Math.min(255, bodyR + 28)},${Math.min(255, bodyG + 16)},${Math.min(255, bodyB + 22)},${(0.26 + danger * 0.18) * opacity})`;
+    const stroke = isBoss
+      ? `rgba(248,113,113,${(0.45 + Math.sin(this.time * 5) * 0.12) * opacity})`
+      : `rgba(${Math.round(106 + danger * 118)},${Math.round(116 - danger * 56)},${Math.round(234 - danger * 118)},${(0.22 + danger * 0.26) * opacity})`;
+    return {
+      fill,
+      fill2,
+      stroke,
+      eye: `rgba(255,255,255,${0.9 * opacity})`,
+      glow: isBoss ? 'rgba(239,68,68,0.42)' : `rgba(${bodyR},${bodyG},${bodyB},0.16)`,
+      crack: `rgba(255,255,255,${0.16 * opacity})`,
+    };
+  }
+
+  private drawCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, targeted: boolean) {
+    const ctx = this.ctx;
+    const grad = ctx.createLinearGradient(cx, cy - bodyH * 0.65, cx, cy + bodyH * 0.7);
+    grad.addColorStop(0, shell.fill2);
+    grad.addColorStop(1, shell.fill);
+
+    ctx.save();
+    ctx.shadowColor = shell.glow;
+    ctx.shadowBlur = isBoss ? 24 : 12;
+    ctx.fillStyle = grad;
+    this.traceCrabBody(cx, cy, bodyW, bodyH, isBoss);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = shell.stroke;
+    ctx.lineWidth = isBoss ? 2.6 : 1.6;
+    this.traceCrabBody(cx, cy, bodyW, bodyH, isBoss);
+    ctx.stroke();
+
+    if (targeted) {
+      ctx.strokeStyle = `rgba(103,232,249,${0.62 + Math.sin(this.time * 10) * 0.18})`;
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([5, 3]);
+      ctx.lineDashOffset = -this.time * 50;
+      this.traceCrabBody(cx, cy, bodyW * 1.03, bodyH * 1.04, false);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.strokeStyle = shell.crack;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - bodyW * 0.22, cy - bodyH * 0.12);
+    ctx.lineTo(cx - bodyW * 0.06, cy - bodyH * 0.02);
+    ctx.lineTo(cx - bodyW * 0.15, cy + bodyH * 0.18);
+    ctx.moveTo(cx + bodyW * 0.06, cy - bodyH * 0.1);
+    ctx.lineTo(cx + bodyW * 0.14, cy + bodyH * 0.04);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawCrabBodyFragments(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroyProgress: number) {
+    const ctx = this.ctx;
+    const split = 8 + destroyProgress * bodyW * 0.22;
+    const fall = destroyProgress * bodyH * 0.32;
+    const spin = destroyProgress * 0.7;
+    const halfW = bodyW * 0.52;
+
+    const drawHalf = (dir: -1 | 1) => {
+      ctx.save();
+      ctx.translate(cx + dir * split, cy + fall);
+      ctx.rotate(dir * spin);
+      ctx.fillStyle = shell.fill;
+      ctx.globalAlpha = opacity;
+      ctx.beginPath();
+      ctx.ellipse(dir * bodyW * 0.12, 0, halfW, bodyH * 0.5, 0, dir === -1 ? Math.PI * 0.55 : -Math.PI * 0.05, dir === -1 ? Math.PI * 1.45 : Math.PI * 0.95, false);
+      ctx.lineTo(dir * bodyW * 0.08, bodyH * 0.38);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = shell.stroke;
+      ctx.lineWidth = isBoss ? 2 : 1.2;
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    drawHalf(-1);
+    drawHalf(1);
+
+    ctx.save();
+    ctx.strokeStyle = shell.crack;
+    ctx.lineWidth = 1.4;
+    ctx.globalAlpha = opacity;
+    ctx.beginPath();
+    ctx.moveTo(cx - bodyW * 0.06, cy - bodyH * 0.32);
+    ctx.lineTo(cx + bodyW * 0.03, cy - bodyH * 0.08);
+    ctx.lineTo(cx - bodyW * 0.02, cy + bodyH * 0.12);
+    ctx.lineTo(cx + bodyW * 0.08, cy + bodyH * 0.34);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawCrabClaw(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, clawCycle: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroying: boolean, destroyProgress: number) {
+    const ctx = this.ctx;
+    const attachX = cx + side * bodyW * 0.44;
+    const attachY = cy - bodyH * 0.08;
+    const open = 0.2 + (clawCycle * 0.18 + 0.18);
+    const driftX = destroying ? side * (18 + destroyProgress * 34) : 0;
+    const driftY = destroying ? destroyProgress * 22 : 0;
+    const rotation = destroying ? side * destroyProgress * 1.2 : side * (0.18 + clawCycle * 0.08);
+    const baseLen = bodyW * (isBoss ? 0.34 : 0.28);
+    const size = isBoss ? 1.18 : 1;
+
+    ctx.save();
+    ctx.translate(attachX + driftX, attachY + driftY);
+    ctx.rotate(rotation);
+    ctx.globalAlpha = opacity;
+    ctx.strokeStyle = shell.stroke;
+    ctx.fillStyle = shell.fill2;
+    ctx.lineWidth = isBoss ? 2.4 : 1.5;
+    ctx.shadowColor = isBoss ? shell.glow : 'transparent';
+    ctx.shadowBlur = isBoss ? 14 : 0;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(side * baseLen * 0.52, -bodyH * 0.04);
+    ctx.stroke();
+
+    for (const jaw of [-1, 1] as const) {
+      ctx.save();
+      ctx.translate(side * baseLen * 0.52, -bodyH * 0.04);
+      ctx.rotate(jaw * open);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(side * baseLen * 0.2, jaw * bodyH * 0.12, side * baseLen * 0.46 * size, jaw * bodyH * 0.18);
+      ctx.quadraticCurveTo(side * baseLen * 0.62 * size, jaw * bodyH * 0.08, side * baseLen * 0.58 * size, 0);
+      if (isBoss) {
+        for (let i = 0; i < 3; i++) {
+          const spikeX = side * baseLen * (0.18 + i * 0.12);
+          const spikeY = jaw * bodyH * (0.08 + i * 0.03);
+          ctx.lineTo(spikeX, spikeY);
+          ctx.lineTo(spikeX + side * 4, spikeY + jaw * 4);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  private drawCrabLeg(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, yOffset: number, spread: number, stride: number, color: string, opacity: number, destroying: boolean, destroyProgress: number) {
+    const ctx = this.ctx;
+    const startX = cx + side * bodyW * 0.22;
+    const startY = cy + yOffset * 0.2;
+    const driftX = destroying ? side * (8 + destroyProgress * 18 + yOffset * 0.03) : 0;
+    const driftY = destroying ? destroyProgress * (18 + yOffset * 0.04) : 0;
+    const bendX = startX + side * (spread + stride * 0.45) + driftX;
+    const bendY = startY + bodyH * 0.16 + Math.abs(stride) * 0.12 + driftY;
+    const endX = startX + side * (spread * 1.5 + stride) + driftX;
+    const endY = startY + bodyH * 0.42 + Math.abs(stride) * 0.08 + driftY;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(bendX, bendY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawCrabEyes(cx: number, cy: number, bodyW: number, bodyH: number, eyeColor: string, opacity: number, destroying: boolean, destroyProgress: number) {
+    const ctx = this.ctx;
+    const driftY = destroying ? destroyProgress * 8 : 0;
+    const eyeLook = 1.2 + Math.sin(this.time * 2.2) * 0.4;
+    for (const side of [-1, 1] as const) {
+      const stalkX = cx + side * bodyW * 0.14;
+      const stalkTopY = cy - bodyH * 0.7 + driftY;
+      const stalkBaseY = cy - bodyH * 0.34 + driftY;
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.strokeStyle = eyeColor;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(stalkX, stalkBaseY);
+      ctx.lineTo(stalkX + side * 2, stalkTopY);
+      ctx.stroke();
+      ctx.fillStyle = eyeColor;
+      ctx.beginPath();
+      ctx.arc(stalkX + side * 2, stalkTopY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(15,23,42,${opacity})`;
+      ctx.beginPath();
+      ctx.arc(stalkX + side * 2 + side * 0.6, stalkTopY + eyeLook, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  private traceCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, isBoss: boolean) {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    if (isBoss) {
+      const spikes = 10;
+      for (let i = 0; i < spikes; i++) {
+        const t = (i / spikes) * Math.PI * 2;
+        const radiusX = bodyW * (i % 2 === 0 ? 0.56 : 0.48);
+        const radiusY = bodyH * (i % 2 === 0 ? 0.58 : 0.5);
+        const x = cx + Math.cos(t) * radiusX;
+        const y = cy + Math.sin(t) * radiusY;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      return;
+    }
+    ctx.ellipse(cx, cy, bodyW * 0.5, bodyH * 0.5, 0, 0, Math.PI * 2);
   }
 
   updateAndDrawParticles(dt: number) {

@@ -14,6 +14,7 @@ export interface FallingWord {
   destroyTimer: number;
   glowIntensity: number;
   spawnProgress: number;
+  legPhase?: number;
 }
 
 let nextId = 0;
@@ -67,6 +68,7 @@ export function createFallingWord(entry: WordEntry, canvasWidth: number, speedMu
     destroyTimer: 0,
     glowIntensity: 0,
     spawnProgress: 0,
+    legPhase: Math.random() * Math.PI * 2,
   };
 }
 

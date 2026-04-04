@@ -17,7 +17,7 @@ const DIFFICULTY_MULT: Record<Difficulty, { speed: number; spawn: number; lives:
 
 export class Game {
   private renderer: Renderer;
-  private phase: 'menu' | 'playing' | 'waveTransition' | 'gameover' = 'menu';
+  private phase: 'menu' | 'playing' | 'paused' | 'waveTransition' | 'gameover' = 'menu';
   private words: FallingWord[] = [];
   private powerUps: PowerUpState[];
   private difficulty: Difficulty;
@@ -59,6 +59,7 @@ export class Game {
 
   stop() {
     this.phase = 'gameover';
+    this.emitState();
   }
 
   start() {
@@ -274,6 +275,30 @@ export class Game {
     }
   }
 
+  togglePause(): boolean {
+    if (this.phase === 'playing') {
+      this.phase = 'paused';
+      this.emitState();
+      return true;
+    }
+    if (this.phase === 'paused') {
+      this.phase = 'playing';
+      this.lastTime = performance.now();
+      this.emitState();
+      return true;
+    }
+    return false;
+  }
+
+  private renderCurrentFrame(frozen = false) {
+    this.renderer.beginFrame();
+    this.renderer.clear(frozen);
+    this.renderer.drawWords(this.words, this.activeTarget);
+    this.renderer.updateAndDrawParticles(0);
+    this.renderer.drawCombo();
+    this.renderer.endFrame();
+  }
+
   update(time: number) {
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
     this.lastTime = time;
@@ -289,6 +314,11 @@ export class Game {
         this.phase = 'playing';
         this.lastTime = time;
       }
+      return;
+    }
+
+    if (this.phase === 'paused') {
+      this.renderCurrentFrame(this.shieldTimer > 0);
       return;
     }
 
@@ -351,6 +381,7 @@ export class Game {
   // Public getters
   get typedText(): string { return this.currentInput; }
   get isPlaying(): boolean { return this.phase === 'playing'; }
+  get isPaused(): boolean { return this.phase === 'paused'; }
   get isGameOver(): boolean { return this.phase === 'gameover'; }
   get currentScore(): number { return this.score; }
   get currentWave(): number { return this.wave; }
