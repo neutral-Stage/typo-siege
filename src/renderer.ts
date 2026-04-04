@@ -125,27 +125,45 @@ export class Renderer {
   drawWaveTransition(wave: number, progress: number) {
     const alpha = progress > 0.5 ? (1 - progress) * 2 : progress * 2;
     const phase = this.getDayPhase(wave);
+    const isDark = phase.key === 'night' || phase.key === 'midnight';
     const ctx = this.ctx;
     ctx.save();
     ctx.globalAlpha = alpha;
+
+    // Use the actual day phase sky colors for the transition background
     const grad = ctx.createLinearGradient(0, 0, 0, this.height);
-    grad.addColorStop(0, '#9edcff');
-    grad.addColorStop(0.45, '#63c8e8');
-    grad.addColorStop(0.72, '#ffd39a');
-    grad.addColorStop(1, '#c79056');
+    grad.addColorStop(0, phase.skyColors[0]);
+    grad.addColorStop(0.3, phase.skyColors[1] || phase.skyColors[0]);
+    grad.addColorStop(0.6, phase.skyColors[2] || phase.skyColors[1] || phase.skyColors[0]);
+    grad.addColorStop(1, phase.sandColors[0]);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, this.width, this.height);
-    ctx.fillStyle = 'rgba(255,247,228,0.12)';
-    ctx.fillRect(0, 0, this.width, this.height);
+
+    const titleColor = isDark ? '#ffeedd' : '#3a2210';
+    const subColor = isDark ? 'rgba(200,220,255,0.9)' : 'rgba(118,73,35,0.96)';
+    const smallColor = isDark ? 'rgba(180,200,235,0.85)' : 'rgba(92,132,145,0.96)';
+    const outlineColor = isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)';
+
     ctx.font = '900 72px "Arial Rounded MT Bold", "Trebuchet MS", sans-serif';
-    ctx.fillStyle = 'rgba(255,250,236,0.96)';
     ctx.textAlign = 'center';
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 5;
+    ctx.strokeText(`WAVE ${wave}`, this.width / 2, this.height / 2 - 16);
+    ctx.fillStyle = titleColor;
     ctx.fillText(`WAVE ${wave}`, this.width / 2, this.height / 2 - 16);
+
     ctx.font = '700 18px "Trebuchet MS", sans-serif';
-    ctx.fillStyle = 'rgba(118,73,35,0.96)';
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 3;
+    ctx.strokeText(phase.key.toUpperCase(), this.width / 2, this.height / 2 + 24);
+    ctx.fillStyle = subColor;
     ctx.fillText(phase.key.toUpperCase(), this.width / 2, this.height / 2 + 24);
+
     ctx.font = '600 14px "Trebuchet MS", sans-serif';
-    ctx.fillStyle = 'rgba(92,132,145,0.96)';
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 2;
+    ctx.strokeText('Hold the shoreline', this.width / 2, this.height / 2 + 50);
+    ctx.fillStyle = smallColor;
     ctx.fillText('Hold the shoreline', this.width / 2, this.height / 2 + 50);
     ctx.textAlign = 'start';
     ctx.restore();
@@ -1481,15 +1499,31 @@ export class Renderer {
   drawCombo() {
     if (this.comboOpacity <= 0) return;
     const ctx = this.ctx;
+    const phase = this.getDayPhase(this.wave);
+    const isDark = phase.key === 'night' || phase.key === 'midnight';
+
     ctx.save();
     ctx.globalAlpha = this.comboOpacity;
     const scale = 1 + (1 - this.comboOpacity) * 0.3;
-    ctx.font = `700 ${24 * scale}px Inter, -apple-system, system-ui, sans-serif`;
-    ctx.fillStyle = '#a5b4fc';
+    const fs = 24 * scale;
+    ctx.font = `700 ${fs}px "Arial Rounded MT Bold", "Trebuchet MS", sans-serif`;
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(165,180,252,0.5)';
-    ctx.shadowBlur = 12;
+
+    // Adapt to background: dark sky → warm gold, light sky → deep ocean
+    const textColor = isDark ? '#ffd07c' : '#2c5f8a';
+    const shadowColor = isDark ? 'rgba(255,208,124,0.6)' : 'rgba(44,95,138,0.4)';
+    const outlineColor = isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)';
+
+    // Outline for contrast
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 4;
+    ctx.strokeText(this.comboText, this.width / 2, 100);
+
+    ctx.fillStyle = textColor;
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = 16;
     ctx.fillText(this.comboText, this.width / 2, 100);
+    ctx.shadowBlur = 0;
     ctx.textAlign = 'start';
     ctx.restore();
     this.comboOpacity = Math.max(0, this.comboOpacity - 0.012);

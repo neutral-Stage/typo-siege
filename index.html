@@ -66,20 +66,21 @@
       align-items: center;
     }
     .hud-item {
-      background: linear-gradient(180deg, rgba(255,246,230,0.8), rgba(239,214,174,0.7));
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--sand-border);
+      background: rgba(255,248,235,0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(180,140,80,0.25);
       padding: 7px 16px;
       border-radius: 14px;
       font-size: 15px;
       font-weight: 700;
-      color: var(--tan-text);
+      color: #3d2a14;
       letter-spacing: 0.01em;
-      box-shadow: 0 10px 26px rgba(116, 78, 38, 0.12);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
     .hud-item .label {
       font-weight: 700;
-      color: rgba(103, 71, 42, 0.68);
+      color: rgba(80,50,20,0.72);
       margin-right: 6px;
       font-size: 10px;
       text-transform: uppercase;
@@ -93,9 +94,10 @@
       color: var(--ocean);
     }
     #lives-display {
-      background: linear-gradient(180deg, rgba(255,246,230,0.82), rgba(238,208,164,0.72));
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--sand-border);
+      background: rgba(255,248,235,0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(180,140,80,0.25);
       padding: 7px 14px;
       border-radius: 14px;
       display: flex;
@@ -368,20 +370,21 @@
       padding: 8px 16px;
       font-size: 13px;
       font-weight: 700;
-      color: var(--tan-text);
-      background: rgba(255, 245, 226, 0.72);
-      border: 1px solid rgba(139,93,48,0.18);
+      color: #3d2a14;
+      background: rgba(255, 248, 235, 0.85);
+      border: 1px solid rgba(139,93,48,0.22);
       border-radius: 12px;
       cursor: pointer;
       transition: all 0.15s;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       pointer-events: auto;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
     }
     .top-bar-btn:hover {
-      background: rgba(255, 247, 232, 0.9);
-      color: var(--ocean-deep);
-      border-color: rgba(44,157,184,0.22);
+      background: rgba(255, 250, 240, 0.95);
+      color: #176f8d;
+      border-color: rgba(44,157,184,0.3);
     }
     #exit-btn:hover {
       background: rgba(239,142,99,0.18);
