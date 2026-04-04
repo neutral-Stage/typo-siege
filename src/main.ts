@@ -183,14 +183,14 @@ let lastCombo = 0;
 // ─── Analytics (counterapi.dev — free, no signup) ───
 async function trackVisit() {
   try {
-    await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/up');
+    await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/up/');
   } catch { /* silent */ }
   fetchCounts();
 }
 
 async function trackGame() {
   try {
-    await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/games/up');
+    await fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/games/up/');
   } catch { /* silent */ }
   fetchCounts();
 }
@@ -198,13 +198,14 @@ async function trackGame() {
 async function fetchCounts() {
   try {
     const [vRes, gRes] = await Promise.all([
-      fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits'),
-      fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/games'),
+      fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/visits/'),
+      fetch('https://api.counterapi.dev/v1/typo-siege-nyh5/games/'),
     ]);
+    if (!vRes.ok || !gRes.ok) throw new Error(`HTTP ${vRes.status} ${gRes.status}`);
     const vData = await vRes.json();
     const gData = await gRes.json();
-    if (statVisits) statVisits.textContent = vData?.count ?? '—';
-    if (statTotalGames) statTotalGames.textContent = gData?.count ?? '—';
+    if (statVisits) statVisits.textContent = String(vData?.count ?? '—');
+    if (statTotalGames) statTotalGames.textContent = String(gData?.count ?? '—');
   } catch (e) { console.warn('counter fetch failed', e); }
 }
 
