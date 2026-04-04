@@ -2,7 +2,7 @@
 
 **A text tower defense game. Type falling words to destroy them. Charge power-ups. Survive the siege.**
 
-🎮 **[Play Now](https://neutral-stage.github.io/typo-siege/)**
+🎮 **[Play Now](https://typo-siege.vercel.app/)**
 
 ![TYPO SIEGE](https://img.shields.io/badge/game-typing%20tower%20defense-6366f1?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=flat-square&logo=typescript)
@@ -29,22 +29,24 @@
 
 ## ✨ Features
 
-- 🌊 Progressive wave system with increasing difficulty
+- 🏰 Castle towers at the base with targeting energy beams
+- 👾 Enemy-styled words with angry faces, health bars, boss crowns
+- 🌊 Progressive wave system with boss waves every 5 levels
 - 🔤 Real English words from simple (3 letters) to expert (9+ letters)
-- ⚡ 4 unique power-ups with charge system
-- 🔥 Combo multiplier system
+- ⚡ 4 unique power-ups with stacking charge system
+- 🔥 Combo multiplier system with taunts
+- 🏅 16 achievements to unlock
 - 🎵 Sound effects via Web Audio API (zero dependencies)
 - 💾 High score persistence with localStorage
 - 📱 Responsive — works on desktop, tablet, and mobile
-- 🎨 Dark theme with particle effects and screen flashes
-- 🌐 Wave transition animations
+- 🎨 Dark theme with particle effects and animated destroy animations
+- 📊 Live visitor and game count (counterapi.dev)
 
 ## 🛠️ Tech Stack
 
 - **[Vite](https://vite.dev/)** — Lightning-fast build tool
 - **TypeScript** — Type-safe game logic
 - **Canvas 2D** — Hardware-accelerated rendering
-- **[@chenglou/pretext](https://github.com/chenglou/pretext)** — Text shaping engine
 - **Web Audio API** — Synthesized sound effects
 
 ## 🚀 Development
@@ -65,16 +67,16 @@ npm run build
 ```
 typo-siege/
 ├── index.html          # Game shell, HUD, overlays, styles
+├── vercel.json         # Vercel deployment config
 ├── src/
 │   ├── main.ts         # Entry point, input handling, UI updates
 │   ├── game.ts         # Core game loop and state management
 │   ├── entities.ts     # Falling word entities and targeting
 │   ├── words.ts        # Word bank and wave progression
-│   ├── power.ts        # Power-up system (charge, activate)
-│   ├── renderer.ts     # Canvas 2D renderer with effects
+│   ├── power.ts        # Power-up system (charge, stack, activate)
+│   ├── renderer.ts     # Canvas 2D renderer with tower/enemy visuals
 │   └── audio.ts        # Web Audio API sound synthesis
-├── vite.config.ts      # Vite configuration
-└── .github/workflows/  # GitHub Pages auto-deploy
+└── vite.config.ts      # Vite configuration
 ```
 
 ## 📄 License
@@ -83,4 +85,4 @@ MIT
 
 ---
 
-Built by [Shuvo Anirban Roy](https://shuvoanirbanroy.com) · [GitHub](https://github.com/neutral-Stage)
+Built by [Shuvo Anirban Roy](https://shuvoanirbanroy.com) · [GitHub](https://github.com/neutral-Stage/typo-siege)
