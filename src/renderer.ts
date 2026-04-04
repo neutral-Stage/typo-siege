@@ -144,7 +144,8 @@ export class Renderer {
     const smallColor = isDark ? 'rgba(180,200,235,0.85)' : 'rgba(92,132,145,0.96)';
     const outlineColor = isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)';
 
-    ctx.font = '900 72px "Arial Rounded MT Bold", "Trebuchet MS", sans-serif';
+    const waveFontSize = Math.min(72, this.width * 0.12);
+    ctx.font = `900 ${waveFontSize}px "Arial Rounded MT Bold", "Trebuchet MS", sans-serif`;
     ctx.textAlign = 'center';
     ctx.strokeStyle = outlineColor;
     ctx.lineWidth = 5;
@@ -1505,7 +1506,7 @@ export class Renderer {
     ctx.save();
     ctx.globalAlpha = this.comboOpacity;
     const scale = 1 + (1 - this.comboOpacity) * 0.3;
-    const fs = 24 * scale;
+    const fs = Math.min(24, this.width * 0.05) * scale;
     ctx.font = `700 ${fs}px "Arial Rounded MT Bold", "Trebuchet MS", sans-serif`;
     ctx.textAlign = 'center';
 

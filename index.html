@@ -603,12 +603,29 @@
       /* Show tap hint */
       #tap-hint { display: block; }
 
+      /* Hide Phase HUD on mobile — shown in wave transition */
+      .hud-item:has(#phase-val) { display: none; }
+
       /* HUD compact */
       #hud { padding: 8px 10px; gap: 6px; }
       .hud-section { gap: 6px; }
       .hud-item { padding: 4px 10px; font-size: 13px; border-radius: 8px; }
       .hud-item .label { font-size: 8px; margin-right: 3px; }
       #lives-display { padding: 4px 8px; border-radius: 8px; font-size: 13px; gap: 3px; }
+
+      /* Top bar — stack on mobile */
+      #top-bar {
+        top: 48px;
+        gap: 6px;
+      }
+      .top-bar-btn {
+        padding: 6px 10px;
+        font-size: 18px;
+      }
+
+      /* Taunt/combo below top bar */
+      #taunt-display { top: 80px; font-size: 14px; }
+      #combo-display { top: 104px; font-size: 20px; }
 
       /* Input display — above power-ups */
       #input-display {
@@ -672,6 +689,8 @@
       #start-btn { padding: 12px 32px; }
       #difficulty-selector { gap: 4px; }
       .diff-btn { padding: 6px 12px; font-size: 11px; }
+      #top-bar { top: 44px; gap: 4px; }
+      .top-bar-btn { padding: 5px 8px; font-size: 16px; }
     }
 
     @media (max-height: 500px) and (orientation: landscape) {
