@@ -872,18 +872,19 @@ export class Renderer {
     const speed = word.speed;
 
     const danger = Math.min(1, Math.max(0, word.y / (H - 80)));
-    const gaitBase = this.time * (2.4 + speed * 0.03) + (word.legPhase ?? 0);
+    const gaitBase = this.time * (2.6 + speed * 0.028) + (word.legPhase ?? 0) + word.id * 0.37;
     const legCycle = Math.sin(gaitBase);
-    const clawCycle = Math.sin(gaitBase * 1.25 + word.id * 0.4);
-    const bob = word.destroying ? 0 : Math.sin(gaitBase * 1.7) * (1.5 + danger * 1.4);
-    const sway = word.destroying ? 0 : Math.cos(gaitBase * 0.9) * (0.8 + danger * 0.5);
+    const clawCycle = Math.sin(gaitBase * 1.15 + word.id * 0.41);
+    const bob = word.destroying ? 0 : Math.sin(gaitBase * 2.1) * (1.2 + danger * 1.2);
+    const sway = word.destroying ? 0 : Math.cos(gaitBase * 0.95) * (0.9 + danger * 0.55);
     const destroyProgress = word.destroying
       ? Math.min(1, Math.max(0, 1 - Math.max(word.destroyTimer, 0) / 0.4))
       : 0;
-    const bodyW = word.width * (isBoss ? 1.06 : 1);
-    const bodyH = word.height * (isBoss ? 1.28 : 1.18);
+    const textPadX = Math.max(18, fs * 0.7);
+    const bodyW = Math.max(word.width + textPadX * 2.1, fs * 4.6) * (isBoss ? 1.5 : 1.05);
+    const bodyH = Math.max(word.height * 1.45, fs * 2.55) * (isBoss ? 1.5 : 1.08);
     const cx = word.x + word.width / 2 + sway;
-    const cy = word.y + word.height / 2 + bob;
+    const cy = word.y + word.height / 2 + bob + (isBoss ? 2 : 0);
     const shell = this.getCrabPalette(danger, isBoss, word.opacity);
     const vibAmp = (0.18 + danger * 0.55 + (isBoss ? 0.4 : 0)) * (speed / 55);
     const vibX = Math.sin(this.time * 15 + word.id * 3) * vibAmp;
@@ -891,12 +892,11 @@ export class Renderer {
 
     ctx.save();
     ctx.translate(vibX, vibY);
-    const legCountPerSide = isBoss ? 3 : 2;
-    for (let i = 0; i < legCountPerSide; i++) {
-      const legT = i / (legCountPerSide - 1);
-      const yOffset = bodyH * (0.08 + legT * 0.34);
-      const spread = bodyW * (0.14 + legT * 0.03);
-      const stride = (i % 2 === 0 ? legCycle : -legCycle) * (6 + speed * 0.03);
+    for (let i = 0; i < 3; i++) {
+      const legT = i / 2;
+      const yOffset = bodyH * (0.05 + legT * 0.22);
+      const spread = bodyW * (0.19 + legT * 0.09);
+      const stride = (i % 2 === 0 ? legCycle : -legCycle) * (5 + speed * 0.034);
       this.drawCrabLeg(cx, cy, bodyW, bodyH, -1, yOffset, spread, stride, shell.fill, word.opacity, word.destroying, destroyProgress);
       this.drawCrabLeg(cx, cy, bodyW, bodyH, 1, yOffset, spread, -stride, shell.fill, word.opacity, word.destroying, destroyProgress);
     }
@@ -912,54 +912,45 @@ export class Renderer {
 
     this.drawCrabEyes(cx, cy, bodyW, bodyH, shell.eye, word.opacity, word.destroying, destroyProgress);
 
-    if (isBoss && !word.destroying) {
-      if (Math.random() < 0.35) {
-        this.particles.push({
-          x: cx + (Math.random() - 0.5) * bodyW,
-          y: cy - bodyH * 0.2 + Math.random() * bodyH * 0.7,
-          vx: (Math.random() - 0.5) * 20,
-          vy: -Math.random() * 50 - 10,
-          char: '•', opacity: 0.7, font: '6px Inter', size: 3,
-          rotation: 0, vr: 0,
-          color: ['#ef4444','#f97316','#fbbf24'][Math.floor(Math.random() * 3)],
-          effect: 'normal', life: 0.5, maxLife: 0.5, scale: 1, glowSize: 5,
-        });
-      }
+    const textY = cy + fs * 0.16;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    let advance = 0;
+    ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width);
+    const letterSpacing = 0.5;
+    for (let i = 0; i < text.length; i++) {
+      advance += ctx.measureText(text[i]).width;
+      if (i < text.length - 1) advance += letterSpacing;
     }
-
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-
-    const textY = cy - fs * 0.1;
-    let textX = cx - word.width / 2 + PADDING_X;
+    let textX = cx - advance / 2;
 
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
-      const outline = word.destroying ? `rgba(0,0,0,${word.opacity * 0.4})` : 'rgba(0,0,0,0.7)';
+      const outline = word.destroying ? `rgba(0,0,0,${word.opacity * 0.45})` : `rgba(0,0,0,${0.95 * word.opacity})`;
       ctx.strokeStyle = outline;
-      ctx.lineWidth = isBoss ? 3.5 : 3;
+      ctx.lineWidth = isBoss ? 4 : 3;
       ctx.lineJoin = 'round';
       ctx.miterLimit = 2;
       if (i < typed) {
         ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width, 600);
         ctx.fillStyle = `rgba(103,232,249,${word.opacity})`;
-        ctx.shadowColor = 'rgba(103,232,249,0.5)';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(103,232,249,0.8)';
+        ctx.shadowBlur = 10;
       } else if (word.destroying) {
         ctx.font = getFont(this.width);
         ctx.fillStyle = `rgba(99,102,241,${word.opacity * 0.25})`;
         ctx.shadowBlur = 0;
       } else {
         ctx.font = isBoss ? `700 ${fs}px Inter, sans-serif` : getFont(this.width);
-        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.98, Math.max(0.85, word.opacity * 0.95))})`;
-        ctx.shadowColor = 'rgba(0,0,0,0.2)';
-        ctx.shadowBlur = 2;
+        ctx.fillStyle = `rgba(255,255,255,${Math.min(1, Math.max(0.88, word.opacity))})`;
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
       }
-      ctx.strokeText(char, textX, textY + fs);
-      ctx.fillText(char, textX, textY + fs);
+      ctx.strokeText(char, textX, textY);
+      ctx.fillText(char, textX, textY);
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
-      textX += ctx.measureText(char).width + 0.5;
+      textX += ctx.measureText(char).width + letterSpacing;
     }
 
     if (typed > 0 && !word.destroying) {
@@ -968,44 +959,47 @@ export class Renderer {
       ctx.shadowColor = 'rgba(103,232,249,0.6)';
       ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.moveTo(cx - word.width / 2 + PADDING_X, textY + fs + 4);
+      ctx.moveTo(cx - advance / 2, textY + fs * 0.52);
       let ulW = 0;
       ctx.font = getFont(this.width, 600);
-      for (let i = 0; i < typed; i++) ulW += ctx.measureText(text[i]).width + 0.5;
-      ctx.lineTo(cx - word.width / 2 + PADDING_X + ulW, textY + fs + 4);
+      for (let i = 0; i < typed; i++) ulW += ctx.measureText(text[i]).width + letterSpacing;
+      ctx.lineTo(cx - advance / 2 + ulW, textY + fs * 0.52);
       ctx.stroke();
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
     }
 
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
 
   private getCrabPalette(danger: number, isBoss: boolean, opacity: number) {
-    const bodyR = isBoss ? Math.round(138 + danger * 42) : Math.round(220 + danger * 22);
-    const bodyG = isBoss ? Math.round(24 + danger * 14) : Math.round(38 + danger * 50);
-    const bodyB = isBoss ? Math.round(24 + danger * 10) : Math.round(38 + danger * 12);
-    const fill = `rgba(${bodyR},${bodyG},${bodyB},${(0.82 + danger * 0.14) * opacity})`;
-    const fill2 = `rgba(${Math.min(255, bodyR + 22)},${Math.min(255, bodyG + 18)},${Math.min(255, bodyB + 10)},${(0.9 + danger * 0.08) * opacity})`;
-    const stroke = `rgba(0,0,0,${0.96 * opacity})`;
+    const base = isBoss ? { r: 153, g: 27, b: 27 } : { r: 220, g: 38, b: 38 };
+    const top = isBoss ? { r: 185, g: 28, b: 28 } : { r: 239, g: 68, b: 68 };
+    const shadow = isBoss ? { r: 127, g: 29, b: 29 } : { r: 185, g: 28, b: 28 };
+    const tint = Math.round(danger * 10);
+    const a = Math.max(0.18, opacity);
+    const rgba = (r: number, g: number, b: number, alpha = a) => `rgba(${r},${g},${b},${alpha})`;
     return {
-      fill,
-      fill2,
-      stroke,
-      eye: `rgba(255,255,255,${0.9 * opacity})`,
-      glow: isBoss ? 'rgba(127,29,29,0.35)' : `rgba(${bodyR},${bodyG},${bodyB},0.18)`,
-      crack: `rgba(255,235,215,${0.28 * opacity})`,
-      dark: `rgba(${Math.max(0, bodyR - 46)},${Math.max(0, bodyG - 24)},${Math.max(0, bodyB - 18)},${0.96 * opacity})`,
-      legAlt: `rgba(${Math.max(0, bodyR - 22)},${Math.max(0, bodyG - 12)},${Math.max(0, bodyB - 6)},${0.92 * opacity})`,
-      crown: `rgba(255,215,0,${0.95 * opacity})`,
+      fill: rgba(base.r + tint, base.g + Math.round(danger * 6), base.b),
+      fill2: rgba(top.r + tint, top.g + Math.round(danger * 5), top.b),
+      dark: rgba(shadow.r + Math.round(danger * 5), shadow.g, shadow.b),
+      legAlt: rgba(Math.min(255, base.r + 18), Math.min(255, base.g + 24), Math.max(0, base.b - 6)),
+      stroke: `rgba(0,0,0,${opacity})`,
+      eye: `rgba(255,255,255,${opacity})`,
+      pupil: `rgba(0,0,0,${opacity})`,
+      glow: isBoss ? `rgba(220,38,38,${0.22 + danger * 0.1})` : `rgba(239,68,68,${0.12 + danger * 0.05})`,
+      crack: `rgba(255,220,190,${opacity * 0.18})`,
+      crown: `rgba(245,198,59,${opacity})`,
     };
   }
 
   private getPixelSize(bodyW: number, bodyH: number) {
-    return Math.max(3, Math.round(Math.min(bodyW, bodyH) / 8));
+    return Math.max(4, Math.round(Math.min(bodyW / 18, bodyH / 10)));
   }
 
-  private pixelRect(x: number, y: number, w: number, h: number, fill: string, stroke = C_CRAB_OUTLINE, lineWidth = 1.2) {
+  private pixelRect(x: number, y: number, w: number, h: number, fill: string, stroke = C_CRAB_OUTLINE, lineWidth = 2) {
     const ctx = this.ctx;
     const rx = Math.round(x);
     const ry = Math.round(y);
@@ -1021,34 +1015,63 @@ export class Renderer {
   private drawCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, targeted: boolean) {
     const ctx = this.ctx;
     const px = this.getPixelSize(bodyW, bodyH);
-    const rows = isBoss ? [8, 10, 12, 14, 14, 12, 10, 8] : [6, 8, 10, 12, 12, 10, 8, 6];
+    const cols = Math.max(isBoss ? 16 : 14, Math.round(bodyW / px));
+    const rows = isBoss
+      ? [
+          Math.max(8, cols - 8),
+          cols - 4,
+          cols - 2,
+          cols,
+          cols,
+          cols - 1,
+          cols - 3,
+          cols - 6,
+        ]
+      : [
+          Math.max(8, cols - 6),
+          cols - 2,
+          cols,
+          cols,
+          cols - 1,
+          cols - 3,
+          cols - 5,
+        ];
     const maxCols = Math.max(...rows);
     const bodyX = cx - (maxCols * px) / 2;
-    const bodyY = cy - (rows.length * px) / 2;
+    const bodyY = cy - rows.length * px * 0.62;
 
     ctx.save();
-    ctx.shadowColor = shell.glow;
-    ctx.shadowBlur = isBoss ? 18 : 10;
     ctx.globalAlpha = opacity;
+    if (isBoss) {
+      const pulse = 0.6 + Math.sin(this.time * 4) * 0.2;
+      ctx.fillStyle = shell.glow;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, bodyW * 0.72, bodyH * 0.62, 0, 0, Math.PI * 2);
+      ctx.globalAlpha = opacity * pulse * 0.55;
+      ctx.fill();
+      ctx.globalAlpha = opacity;
+    }
     for (let row = 0; row < rows.length; row++) {
       const count = rows[row];
       const offset = (maxCols - count) / 2;
       for (let col = 0; col < count; col++) {
         const x = bodyX + (offset + col) * px;
         const y = bodyY + row * px;
-        const fill = row <= 2 ? shell.fill2 : row >= rows.length - 2 ? shell.dark : shell.fill;
-        this.pixelRect(x, y, px, px, fill, shell.stroke);
+        const highlightBand = row <= 1 || (row === 2 && col > 1 && col < count - 2);
+        const shadowBand = row >= rows.length - 2 || (row === rows.length - 3 && (col < 2 || col > count - 3));
+        const fill = highlightBand ? shell.fill2 : shadowBand ? shell.dark : shell.fill;
+        this.pixelRect(x, y, px, px, fill, shell.stroke, 2.2);
       }
     }
-    this.pixelRect(bodyX + px * 2, bodyY + px * 3, px * 2, px, shell.fill2, shell.stroke);
-    this.pixelRect(bodyX + maxCols * px - px * 4, bodyY + px * 3, px * 2, px, shell.fill2, shell.stroke);
-    this.pixelRect(bodyX + px * 3, bodyY + px * 5, px * 2, px, shell.dark, shell.stroke);
-    this.pixelRect(bodyX + maxCols * px - px * 5, bodyY + px * 5, px * 2, px, shell.dark, shell.stroke);
+    this.pixelRect(bodyX + px * 2, bodyY + px * 2, px * 2, px, shell.fill2, shell.stroke, 2.2);
+    this.pixelRect(bodyX + maxCols * px - px * 4, bodyY + px * 2, px * 2, px, shell.fill2, shell.stroke, 2.2);
+    this.pixelRect(bodyX + px * 3, bodyY + rows.length * px - px * 2, px * 2, px, shell.dark, shell.stroke, 2.2);
+    this.pixelRect(bodyX + maxCols * px - px * 5, bodyY + rows.length * px - px * 2, px * 2, px, shell.dark, shell.stroke, 2.2);
     ctx.restore();
 
     ctx.save();
     ctx.strokeStyle = shell.stroke;
-    ctx.lineWidth = isBoss ? 2.4 : 1.8;
+    ctx.lineWidth = 2.4;
     this.traceCrabBody(cx, cy, bodyW, bodyH, isBoss);
     ctx.stroke();
 
@@ -1062,22 +1085,18 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    ctx.strokeStyle = shell.crack;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx - px * 2.5, cy - px * 1.5);
-    ctx.lineTo(cx - px, cy - px * 0.5);
-    ctx.lineTo(cx - px * 1.8, cy + px * 1.2);
-    ctx.moveTo(cx + px, cy - px * 1.2);
-    ctx.lineTo(cx + px * 1.8, cy + px * 0.4);
-    ctx.stroke();
-
     if (isBoss) {
       const crownY = bodyY - px * 2;
-      this.pixelRect(cx - px * 2.5, crownY, px * 5, px, shell.crown, shell.stroke);
-      this.pixelRect(cx - px * 2, crownY - px, px, px, shell.crown, shell.stroke);
-      this.pixelRect(cx, crownY - px * 1.5, px, px * 1.5, shell.crown, shell.stroke);
-      this.pixelRect(cx + px, crownY - px, px, px, shell.crown, shell.stroke);
+      const spikeY = bodyY - px;
+      for (let i = -3; i <= 3; i++) {
+        if (i % 2 === 0) {
+          this.pixelRect(cx + i * px * 1.1, spikeY, px, px, shell.dark, shell.stroke, 2.2);
+        }
+      }
+      this.pixelRect(cx - px * 3, crownY, px * 6, px, shell.crown, shell.stroke, 2.2);
+      this.pixelRect(cx - px * 2.5, crownY - px, px, px, shell.crown, shell.stroke, 2.2);
+      this.pixelRect(cx - px * 0.5, crownY - px * 1.6, px, px * 1.6, shell.crown, shell.stroke, 2.2);
+      this.pixelRect(cx + px * 1.5, crownY - px, px, px, shell.crown, shell.stroke, 2.2);
     }
     ctx.restore();
   }
@@ -1085,10 +1104,13 @@ export class Renderer {
   private drawCrabBodyFragments(cx: number, cy: number, bodyW: number, bodyH: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroyProgress: number) {
     const ctx = this.ctx;
     const px = this.getPixelSize(bodyW, bodyH);
-    const rows = isBoss ? [8, 10, 12, 14, 14, 12, 10, 8] : [6, 8, 10, 12, 12, 10, 8, 6];
+    const cols = Math.max(isBoss ? 16 : 14, Math.round(bodyW / px));
+    const rows = isBoss
+      ? [Math.max(8, cols - 8), cols - 4, cols - 2, cols, cols, cols - 1, cols - 3, cols - 6]
+      : [Math.max(8, cols - 6), cols - 2, cols, cols, cols - 1, cols - 3, cols - 5];
     const maxCols = Math.max(...rows);
     const startX = cx - (maxCols * px) / 2;
-    const startY = cy - (rows.length * px) / 2;
+    const startY = cy - rows.length * px * 0.62;
 
     ctx.save();
     ctx.globalAlpha = opacity;
@@ -1099,18 +1121,18 @@ export class Renderer {
         const x = startX + (offset + col) * px;
         const y = startY + row * px;
         const dirX = col < count / 2 ? -1 : 1;
-        const driftX = dirX * (destroyProgress * (10 + (col % 3) * 5) + row * 0.6);
-        const driftY = destroyProgress * (12 + row * 3 + (col % 2) * 4);
+        const driftX = dirX * (destroyProgress * (12 + (col % 4) * 5) + row * 0.8);
+        const driftY = destroyProgress * (12 + row * 4 + (col % 3) * 3);
         const wobble = Math.sin(this.time * 18 + row * 2 + col) * destroyProgress * 2;
-        const fill = row <= 2 ? shell.fill2 : row >= rows.length - 2 ? shell.dark : shell.fill;
-        this.pixelRect(x + driftX, y + driftY + wobble, px, px, fill, shell.stroke);
+        const fill = row <= 1 ? shell.fill2 : row >= rows.length - 2 ? shell.dark : shell.fill;
+        this.pixelRect(x + driftX, y + driftY + wobble, px, px, fill, shell.stroke, 2.2);
       }
     }
     for (const side of [-1, 1] as const) {
-      for (let i = 0; i < (isBoss ? 3 : 2); i++) {
-        const segX = cx + side * (bodyW * 0.24 + i * px * 1.5 + destroyProgress * 20);
-        const segY = cy + bodyH * 0.08 + i * px * 1.6 + destroyProgress * 18;
-        this.pixelRect(segX, segY, px * 1.2, px * 0.8, i % 2 === 0 ? shell.legAlt : shell.fill, shell.stroke);
+      for (let i = 0; i < 3; i++) {
+        const segX = cx + side * (bodyW * 0.18 + i * px * 2 + destroyProgress * 24);
+        const segY = cy + bodyH * 0.12 + i * px * 1.7 + destroyProgress * 20;
+        this.pixelRect(segX, segY, px * 1.4, px, i % 2 === 0 ? shell.legAlt : shell.fill, shell.stroke, 2.2);
       }
     }
     ctx.restore();
@@ -1119,70 +1141,66 @@ export class Renderer {
   private drawCrabClaw(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, clawCycle: number, shell: ReturnType<Renderer['getCrabPalette']>, isBoss: boolean, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
     const px = this.getPixelSize(bodyW, bodyH);
-    const attachX = cx + side * bodyW * 0.44;
-    const attachY = cy - bodyH * 0.08;
-    const openStep = Math.round((clawCycle + 1) * 1.5);
-    const driftX = destroying ? side * (18 + destroyProgress * 34) : 0;
-    const driftY = destroying ? destroyProgress * 22 : 0;
-    const rotation = destroying ? side * destroyProgress * 0.5 : side * 0.08;
-    const baseLen = px * (isBoss ? 4.8 : 4.2);
+    const attachX = cx + side * bodyW * 0.29;
+    const attachY = cy + bodyH * 0.2;
+    const openStep = 1 + ((clawCycle + 1) / 2) * (isBoss ? 2.4 : 2);
+    const driftX = destroying ? side * (18 + destroyProgress * 40) : 0;
+    const driftY = destroying ? destroyProgress * 28 : 0;
+    const rotation = destroying ? side * destroyProgress * 0.9 : side * (0.12 + clawCycle * 0.04);
+    const armLen = px * (isBoss ? 4.6 : 4);
 
     ctx.save();
     ctx.translate(attachX + driftX, attachY + driftY);
     ctx.rotate(rotation);
     ctx.globalAlpha = opacity;
-    ctx.shadowColor = isBoss ? shell.glow : 'transparent';
-    ctx.shadowBlur = isBoss ? 10 : 0;
-
     for (let i = 0; i < 3; i++) {
-      this.pixelRect(side * (i * px), -px * 0.5, px, px, i % 2 === 0 ? shell.fill : shell.legAlt, shell.stroke);
+      const segX = side > 0 ? i * px * 1.15 : -(i + 1) * px * 1.15;
+      this.pixelRect(segX, i % 2 === 0 ? -px * 0.2 : px * 0.15, px * 1.2, px, i % 2 === 0 ? shell.fill : shell.dark, shell.stroke, 2.2);
     }
 
-    const jawBaseX = side * baseLen;
-    const upperY = -px * (1 + openStep * 0.35);
-    const lowerY = px * (openStep * 0.32);
-    this.pixelRect(jawBaseX, upperY, px * 2, px, shell.fill2, shell.stroke);
-    this.pixelRect(jawBaseX + side * px * 1.5, upperY - px, px * 1.5, px, shell.fill2, shell.stroke);
-    this.pixelRect(jawBaseX, lowerY, px * 2, px, shell.fill2, shell.stroke);
-    this.pixelRect(jawBaseX + side * px * 1.5, lowerY + px, px * 1.5, px, shell.fill2, shell.stroke);
-
-    if (isBoss) {
-      this.pixelRect(jawBaseX + side * px * 2.8, upperY - px * 0.4, px, px * 0.8, shell.dark, shell.stroke);
-      this.pixelRect(jawBaseX + side * px * 2.8, lowerY + px * 0.6, px, px * 0.8, shell.dark, shell.stroke);
-    }
+    const jawBaseX = side > 0 ? armLen : -armLen - px * 2.6;
+    const upperY = -px * (1.2 + openStep * 0.55);
+    const lowerY = px * (0.8 + openStep * 0.4);
+    this.pixelRect(jawBaseX, -px * 0.35, px * 2.6, px * 1.3, shell.fill, shell.stroke, 2.2);
+    this.pixelRect(jawBaseX + side * px * 1.3, upperY, px * 3, px * 1.1, shell.fill2, shell.stroke, 2.2);
+    this.pixelRect(jawBaseX + side * px * 2.8, upperY - px, px * 1.4, px, shell.fill2, shell.stroke, 2.2);
+    this.pixelRect(jawBaseX + side * px * 1.3, lowerY, px * 3, px * 1.1, shell.fill2, shell.stroke, 2.2);
+    this.pixelRect(jawBaseX + side * px * 2.8, lowerY + px * 1.1, px * 1.4, px, shell.dark, shell.stroke, 2.2);
+    this.pixelRect(jawBaseX + side * px * 0.8, lowerY + px * 0.4, px * 1.6, px * 0.8, shell.dark, shell.stroke, 2.2);
     ctx.restore();
   }
 
   private drawCrabLeg(cx: number, cy: number, bodyW: number, bodyH: number, side: -1 | 1, yOffset: number, spread: number, stride: number, color: string, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
     const px = this.getPixelSize(bodyW, bodyH);
-    const startX = cx + side * bodyW * 0.22;
-    const startY = cy + yOffset * 0.2;
-    const driftX = destroying ? side * (8 + destroyProgress * 18 + yOffset * 0.03) : 0;
-    const driftY = destroying ? destroyProgress * (18 + yOffset * 0.04) : 0;
-    const step = Math.round(stride / Math.max(1, px * 0.6));
+    const startX = cx + side * bodyW * 0.16;
+    const startY = cy + yOffset;
+    const driftX = destroying ? side * (8 + destroyProgress * 22 + yOffset * 0.03) : 0;
+    const driftY = destroying ? destroyProgress * (18 + yOffset * 0.05) : 0;
+    const step = Math.round(stride / Math.max(1, px * 0.55));
     const points = [
       { x: startX, y: startY },
-      { x: startX + side * (spread * 0.7 + step * px * 0.6) + driftX, y: startY + px * 1.5 + driftY },
-      { x: startX + side * (spread * 1.15 + step * px * 0.9) + driftX, y: startY + px * 2.8 + driftY },
-      { x: startX + side * (spread * 1.5 + step * px * 1.2) + driftX, y: startY + px * 4 + driftY },
+      { x: startX + side * (spread * 0.55 + step * px * 0.7) + driftX, y: startY + px * 1.1 + driftY },
+      { x: startX + side * (spread * 1.05 + step * px) + driftX, y: startY + px * 2.5 + driftY },
+      { x: startX + side * (spread * 1.55 + step * px * 1.15) + driftX, y: startY + px * 4.2 + driftY },
     ];
-    const legAlt = color.startsWith('rgba(')
-      ? color.replace(/rgba\(([^,]+),([^,]+),([^,]+),([^)]+)\)/, (_, r, g, b, a) => `rgba(${Math.max(0, Number(r) - 24)},${Math.max(0, Number(g) - 10)},${Math.max(0, Number(b) - 6)},${a})`)
-      : color;
 
     ctx.save();
     ctx.globalAlpha = opacity;
     for (let i = 0; i < points.length - 1; i++) {
       const p0 = points[i];
       const p1 = points[i + 1];
+      const segColor = i % 2 === 0 ? color : this.getCrabPalette(0, false, opacity).legAlt;
+      const width = Math.abs(p1.x - p0.x);
+      const height = Math.abs(p1.y - p0.y);
       this.pixelRect(
         Math.min(p0.x, p1.x),
         Math.min(p0.y, p1.y),
-        Math.max(px, Math.abs(p1.x - p0.x) + px * 0.45),
-        Math.max(px * 0.8, Math.abs(p1.y - p0.y) + px * 0.45),
-        i % 2 === 0 ? color : legAlt,
+        Math.max(px * 1.15, width + px * 0.55),
+        Math.max(px, height + px * 0.55),
+        segColor,
         C_CRAB_OUTLINE,
+        2,
       );
     }
     ctx.restore();
@@ -1191,17 +1209,17 @@ export class Renderer {
   private drawCrabEyes(cx: number, cy: number, bodyW: number, bodyH: number, eyeColor: string, opacity: number, destroying: boolean, destroyProgress: number) {
     const ctx = this.ctx;
     const px = this.getPixelSize(bodyW, bodyH);
-    const driftY = destroying ? destroyProgress * 8 : 0;
-    const eyeLook = Math.round(1 + Math.sin(this.time * 2.2) * 0.5);
+    const driftY = destroying ? destroyProgress * 10 : 0;
+    const eyeLook = Math.sin(this.time * 1.8) * px * 0.18;
     for (const side of [-1, 1] as const) {
-      const stalkX = cx + side * bodyW * 0.14;
-      const stalkTopY = cy - bodyH * 0.7 + driftY;
-      const stalkBaseY = cy - bodyH * 0.34 + driftY;
+      const stalkX = cx + side * bodyW * 0.16;
+      const stalkTopY = cy - bodyH * 0.82 + driftY;
+      const stalkBaseY = cy - bodyH * 0.48 + driftY;
       ctx.save();
       ctx.globalAlpha = opacity;
-      this.pixelRect(stalkX - px * 0.3, stalkBaseY, px * 0.6, px * 2.2, eyeColor, C_CRAB_OUTLINE);
-      this.pixelRect(stalkX + side * px * 0.4, stalkTopY, px * 1.5, px * 1.5, eyeColor, C_CRAB_OUTLINE);
-      this.pixelRect(stalkX + side * px * 0.9 + side * eyeLook, stalkTopY + px * 0.5, px * 0.45, px * 0.45, `rgba(0,0,0,${opacity})`, C_CRAB_OUTLINE, 0.8);
+      this.pixelRect(stalkX - px * 0.45, stalkBaseY, px * 0.9, px * 2.2, eyeColor, C_CRAB_OUTLINE, 2);
+      this.pixelRect(stalkX + side * px * 0.15, stalkTopY, px * 1.5, px * 1.5, eyeColor, C_CRAB_OUTLINE, 2);
+      this.pixelRect(stalkX + side * (px * 0.7 + eyeLook), stalkTopY + px * 0.55, px * 0.45, px * 0.45, `rgba(0,0,0,${opacity})`, C_CRAB_OUTLINE, 1.2);
       ctx.restore();
     }
   }
@@ -1209,19 +1227,22 @@ export class Renderer {
   private traceCrabBody(cx: number, cy: number, bodyW: number, bodyH: number, isBoss: boolean) {
     const ctx = this.ctx;
     const px = this.getPixelSize(bodyW, bodyH);
-    const rows = isBoss ? [8, 10, 12, 14, 14, 12, 10, 8] : [6, 8, 10, 12, 12, 10, 8, 6];
+    const cols = Math.max(isBoss ? 16 : 14, Math.round(bodyW / px));
+    const rows = isBoss
+      ? [Math.max(8, cols - 8), cols - 4, cols - 2, cols, cols, cols - 1, cols - 3, cols - 6]
+      : [Math.max(8, cols - 6), cols - 2, cols, cols, cols - 1, cols - 3, cols - 5];
     const maxCols = Math.max(...rows);
     const startX = cx - (maxCols * px) / 2;
-    const startY = cy - (rows.length * px) / 2;
+    const startY = cy - rows.length * px * 0.62;
     const points: { x: number; y: number }[] = [];
     ctx.beginPath();
     for (let row = 0; row < rows.length; row++) {
       const offset = (maxCols - rows[row]) / 2;
-      points.push({ x: startX + offset * px, y: startY + row * px });
+      points.push({ x: startX + offset * px, y: startY + row * px + (row === 0 ? px * 0.4 : 0) });
     }
     for (let row = rows.length - 1; row >= 0; row--) {
       const offset = (maxCols - rows[row]) / 2;
-      points.push({ x: startX + (offset + rows[row]) * px, y: startY + (row + 1) * px });
+      points.push({ x: startX + (offset + rows[row]) * px, y: startY + (row + 1) * px - (row === rows.length - 1 ? px * 0.35 : 0) });
     }
     ctx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
