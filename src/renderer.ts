@@ -1158,7 +1158,7 @@ export class Renderer {
     const openAmount = 0.18 + ((clawCycle + 1) / 2) * (isBoss ? 0.38 : 0.3);
     const driftX = destroying ? side * (18 + destroyProgress * 40) : 0;
     const driftY = destroying ? destroyProgress * 28 : 0;
-    const rotation = destroying ? side * destroyProgress * 0.9 : side * (0.16 + clawCycle * 0.08);
+    const baseRotation = destroying ? destroyProgress * 0.9 : (0.16 + clawCycle * 0.08);
     const armLength = bodyW * (isBoss ? 0.32 : 0.28);
     const armThickness = bodyH * (isBoss ? 0.16 : 0.14);
     const clawLength = bodyW * (isBoss ? 0.42 : 0.36);
@@ -1166,10 +1166,12 @@ export class Renderer {
 
     ctx.save();
     ctx.translate(attachX + driftX, attachY + driftY);
-    ctx.rotate(rotation);
+    // Flip horizontally for left side — draw everything right-facing then mirror
+    ctx.scale(side, 1);
+    ctx.rotate(baseRotation);
     ctx.globalAlpha = opacity;
 
-    const armGrad = ctx.createLinearGradient(0, 0, side * armLength, armThickness * 0.5);
+    const armGrad = ctx.createLinearGradient(0, 0, armLength, armThickness * 0.5);
     armGrad.addColorStop(0, shell.fill2);
     armGrad.addColorStop(1, shell.dark);
     ctx.strokeStyle = armGrad;
@@ -1177,19 +1179,19 @@ export class Renderer {
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(side * armLength * 0.18, armThickness * 0.2, side * armLength * 0.56, armThickness * 0.5, side * armLength, armThickness * 0.22);
+    ctx.bezierCurveTo(armLength * 0.18, armThickness * 0.2, armLength * 0.56, armThickness * 0.5, armLength, armThickness * 0.22);
     ctx.stroke();
 
     ctx.strokeStyle = shell.stroke;
     ctx.lineWidth = Math.max(2, armThickness * 0.34);
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(side * armLength * 0.18, armThickness * 0.2, side * armLength * 0.56, armThickness * 0.5, side * armLength, armThickness * 0.22);
+    ctx.bezierCurveTo(armLength * 0.18, armThickness * 0.2, armLength * 0.56, armThickness * 0.5, armLength, armThickness * 0.22);
     ctx.stroke();
 
-    const clawBaseX = side * armLength;
-    this.drawCrabPincer(clawBaseX, armThickness * 0.12, side, -openAmount, clawLength, clawHeight, shell, true);
-    this.drawCrabPincer(clawBaseX, armThickness * 0.18, side, openAmount * 0.92, clawLength, clawHeight * 0.94, shell, false);
+    const clawBaseX = armLength;
+    this.drawCrabPincer(clawBaseX, armThickness * 0.12, -openAmount, clawLength, clawHeight, shell, true);
+    this.drawCrabPincer(clawBaseX, armThickness * 0.18, openAmount * 0.92, clawLength, clawHeight * 0.94, shell, false);
     ctx.restore();
   }
 
@@ -1287,13 +1289,13 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private drawCrabPincer(baseX: number, baseY: number, side: -1 | 1, angle: number, length: number, height: number, shell: ReturnType<Renderer['getCrabPalette']>, upper: boolean) {
+  private drawCrabPincer(baseX: number, baseY: number, angle: number, length: number, height: number, shell: ReturnType<Renderer['getCrabPalette']>, upper: boolean) {
     const ctx = this.ctx;
     ctx.save();
     ctx.translate(baseX, baseY);
     ctx.rotate(angle);
 
-    const grad = ctx.createLinearGradient(0, -height * 0.4, side * length, height * 0.6);
+    const grad = ctx.createLinearGradient(0, -height * 0.4, length, height * 0.6);
     grad.addColorStop(0, upper ? shell.fill2 : shell.fill);
     grad.addColorStop(1, upper ? shell.dark : shell.accent);
     ctx.fillStyle = grad;
@@ -1303,11 +1305,11 @@ export class Renderer {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     if (upper) {
-      ctx.bezierCurveTo(side * length * 0.22, -height * 0.62, side * length * 0.7, -height * 0.58, side * length, -height * 0.12);
-      ctx.quadraticCurveTo(side * length * 0.6, -height * 0.08, side * length * 0.08, height * 0.06);
+      ctx.bezierCurveTo(length * 0.22, -height * 0.62, length * 0.7, -height * 0.58, length, -height * 0.12);
+      ctx.quadraticCurveTo(length * 0.6, -height * 0.08, length * 0.08, height * 0.06);
     } else {
-      ctx.bezierCurveTo(side * length * 0.18, height * 0.16, side * length * 0.7, height * 0.72, side * length, height * 0.22);
-      ctx.quadraticCurveTo(side * length * 0.58, height * 0.02, side * length * 0.04, -height * 0.04);
+      ctx.bezierCurveTo(length * 0.18, height * 0.16, length * 0.7, height * 0.72, length, height * 0.22);
+      ctx.quadraticCurveTo(length * 0.58, height * 0.02, length * 0.04, -height * 0.04);
     }
     ctx.closePath();
     ctx.fill();
@@ -1316,12 +1318,12 @@ export class Renderer {
     const toothCount = upper ? 4 : 3;
     for (let i = 0; i < toothCount; i++) {
       const t = 0.6 + i * 0.1;
-      const tx = side * length * t;
+      const tx = length * t;
       const ty = upper ? -height * 0.14 + i * 1.5 : height * 0.14 - i * 1.5;
       ctx.beginPath();
       ctx.moveTo(tx, ty);
-      ctx.lineTo(tx + side * 5, ty + (upper ? -4 : 4));
-      ctx.lineTo(tx + side * 2, ty + (upper ? 3 : -3));
+      ctx.lineTo(tx + 5, ty + (upper ? -4 : 4));
+      ctx.lineTo(tx + 2, ty + (upper ? 3 : -3));
       ctx.closePath();
       ctx.fillStyle = shell.fill2;
       ctx.fill();

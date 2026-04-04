@@ -241,15 +241,13 @@ export class Game {
     switch (type) {
       case 'fire': {
         const snapshot = this.words.filter(w => !w.destroying);
-        const fireTargets = snapshot.filter(w => w.entry.difficulty < 5);
 
         let waveProgress = 0;
         for (const w of snapshot) {
-          if (w.entry.difficulty >= 5) continue;
           waveProgress += this.getWaveProgressValue(w);
           this.destroyWord(w, true, 'fire', 0);
         }
-        if (fireTargets.length > 0) this.applyWaveProgress(waveProgress);
+        if (snapshot.length > 0) this.applyWaveProgress(waveProgress);
         this.renderer.showScreenFlash('rgba(239,68,68,0.4)');
         break;
       }
@@ -358,13 +356,13 @@ export class Game {
       // Boss word on boss waves
       if (this._isBossWave && !this.bossSpawned) {
         const bossEntry = getBossWord();
-        this.words.push(createFallingWord(bossEntry, W, speedMult * 0.5)); // Boss is slower
+        this.words.push(createFallingWord(bossEntry, W, speedMult * 0.5, this.words));
         this.bossSpawned = true;
       }
 
       const wordPool = getWordsForWave(this.wave);
       const entry = wordPool[Math.floor(Math.random() * wordPool.length)];
-      this.words.push(createFallingWord(entry, W, speedMult));
+      this.words.push(createFallingWord(entry, W, speedMult, this.words));
       this.totalWordsSpawned++;
       this.spawnTimer = getSpawnInterval(this.wave) + Math.random() * 500;
     }

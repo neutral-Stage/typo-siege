@@ -44,15 +44,32 @@ function measureNaturalWidth(text: string, canvasWidth: number): number {
   return ctx.measureText(text).width;
 }
 
-export function createFallingWord(entry: WordEntry, canvasWidth: number, speedMult: number): FallingWord {
+export function createFallingWord(entry: WordEntry, canvasWidth: number, speedMult: number, existingWords?: FallingWord[]): FallingWord {
   const fontSize = getFontSize(canvasWidth);
   const lineHeight = fontSize + 6;
   const textWidth = measureNaturalWidth(entry.text, canvasWidth);
   const totalWidth = textWidth + PADDING_X * 2;
   const totalHeight = lineHeight + PADDING_Y * 2;
 
-  const maxX = canvasWidth - totalWidth - 10;
-  const x = 10 + Math.random() * Math.max(0, maxX);
+  // Calculate X with overlap avoidance
+  const margin = 15;
+  const maxX = canvasWidth - totalWidth - margin;
+  let x = margin + Math.random() * Math.max(0, maxX);
+
+  if (existingWords && existingWords.length > 0) {
+    // Try up to 8 random positions to find one that doesn't overlap
+    const topZone = canvasWidth * 0.25; // Only check words near the top (recently spawned)
+    for (let attempt = 0; attempt < 8; attempt++) {
+      let overlaps = false;
+      for (const w of existingWords) {
+        if (w.destroying || w.y > topZone) continue;
+        const overlap = x < w.x + w.width + margin && x + totalWidth + margin > w.x;
+        if (overlap) { overlaps = true; break; }
+      }
+      if (!overlaps) break;
+      x = margin + Math.random() * Math.max(0, maxX);
+    }
+  }
 
   return {
     id: nextId++,
